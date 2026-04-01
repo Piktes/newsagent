@@ -1,0 +1,54 @@
+"""
+Meejahse - Ekşi Sözlük Engine
+Search Ekşi Sözlük entries using duckduckgo_search (no API key needed).
+"""
+from typing import List
+
+from engines.base import BaseNewsEngine, NewsResult
+
+
+class EksiSozlukEngine(BaseNewsEngine):
+    """Search Ekşi Sözlük entries. Works without API key using DuckDuckGo search."""
+
+    def search(self, query: str, language: str = "tr", max_results: int = 10) -> List[NewsResult]:
+        results = []
+        try:
+            from duckduckgo_search import DDGS
+
+            exact_q = self.exact_query(query)
+
+            with DDGS() as ddgs:
+                search_results = ddgs.text(
+                    keywords=f"{exact_q} site:eksisozluk.com",
+                    region="tr-tr",
+                    max_results=max_results
+                )
+
+                for item in search_results:
+                    url = item.get("href", "")
+                    if "eksisozluk.com" not in url:
+                        continue
+
+                    title = item.get("title", "")
+                    body = item.get("body", "")
+
+                    # Relevance check
+                    tag_phrase = query.lower()
+                    if tag_phrase not in title.lower() and tag_phrase not in body.lower():
+                        continue
+
+                    results.append(NewsResult(
+                        title=title,
+                        url=url,
+                        summary=body[:300] if body else None,
+                        source_name="📖 Ekşi Sözlük",
+                        published_at=None,
+                        source_url=url
+                    ))
+        except Exception as e:
+            print(f"[Ekşi Sözlük Engine] Hata: {e}")
+
+        return results
+
+    def get_engine_name(self) -> str:
+        return "eksisozluk"
