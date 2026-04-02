@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { adminApi } from '../services/api';
+import { BarChart } from 'lucide-react';
 
 export default function AdminPage() {
   const [stats, setStats] = useState(null);
@@ -42,7 +43,7 @@ export default function AdminPage() {
   return (
     <div className="dashboard-page">
       <div className="page-header">
-        <h1>📊 Yönetim Paneli</h1>
+        <h1 style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}><BarChart size={28} /> Yönetim Paneli</h1>
       </div>
 
       {stats && (

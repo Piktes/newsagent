@@ -41,6 +41,39 @@
   --transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* ─── CSS Variables (Light Theme) ────────────────────── */
+body.light-theme {
+  --bg-primary: #f4f4f8;
+  --bg-secondary: #ffffff;
+  --bg-card: #ffffff;
+  --bg-card-hover: #f9f9fc;
+  --bg-sidebar: #ffffff;
+  --bg-input: #ffffff;
+
+  --text-primary: #1e1e2d;
+  --text-secondary: #4a4a68;
+  --text-muted: #8c8cxa; /* Fixed below */
+  --text-muted: #8c8ca1;
+
+  --accent: #5e4bd8;
+  --accent-light: #7b69ec;
+  --accent-glow: rgba(94, 75, 216, 0.2);
+
+  --success: #00b884;
+  --warning: #eab308;
+  --danger: #ef4444;
+  --info: #3b82f6;
+
+  --gold: #d97706;
+  --gold-glow: rgba(217, 119, 6, 0.15);
+
+  --border: rgba(0, 0, 0, 0.08);
+  --border-hover: rgba(0, 0, 0, 0.15);
+
+  --shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.08);
+}
+
 /* ─── Reset ──────────────────────────────────────────── */
 *, *::before, *::after {
   margin: 0;
@@ -292,8 +325,8 @@ input, select, textarea { font-family: inherit; }
   z-index: 1;
   width: 420px;
   padding: 3rem;
-  background: rgba(26, 26, 46, 0.8);
-  backdrop-filter: blur(20px);
+  background: var(--bg-card);
+  backdrop-filter: blur(8px);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg);
@@ -558,6 +591,16 @@ input, select, textarea { font-family: inherit; }
   overflow: hidden;
 }
 
+/* Unread Distinction (Tone difference) */
+.news-card.unread {
+  background: rgba(108, 92, 231, 0.1);
+  border-left-color: var(--accent);
+}
+body.light-theme .news-card.unread {
+  background: rgba(94, 75, 216, 0.08); /* More visible blueish tint */
+  border-left-color: var(--accent);
+}
+
 .news-card::before {
   content: '';
   position: absolute;
@@ -578,7 +621,7 @@ input, select, textarea { font-family: inherit; }
 
 .news-card:hover::before { opacity: 1; }
 
-.news-card.read { opacity: 0.7; }
+.news-card.read { opacity: 0.65; }
 .news-card.read:hover { opacity: 1; }
 
 .news-thumbnail {
@@ -1330,3 +1373,79 @@ input, select, textarea { font-family: inherit; }
   background: linear-gradient(90deg, #e74c3c, #ff6b6b);
 }
 
+/* ─── Modal ──────────────────────────────────────────── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  animation: fadeIn 0.2s ease;
+}
+
+.modal-content {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 2rem;
+  max-width: 420px;
+  width: 90%;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  animation: modalSlideIn 0.25s ease;
+}
+
+@keyframes modalSlideIn {
+  from { opacity: 0; transform: translateY(-20px) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.modal-icon {
+  font-size: 2.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.modal-content h3 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin-bottom: 0.75rem;
+}
+
+.modal-content p {
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-bottom: 0.4rem;
+}
+
+.modal-warning {
+  color: var(--danger) !important;
+  font-size: 0.8rem !important;
+  font-weight: 600;
+  margin-top: 0.25rem;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+  margin-top: 1.25rem;
+}
+
+.modal-actions .btn {
+  min-width: 120px;
+  justify-content: center;
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  100% {
+    transform: rotate(360deg);
+  }
+}

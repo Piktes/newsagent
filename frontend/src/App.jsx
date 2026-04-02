@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './hooks/useAuth';
 import Sidebar from './components/Sidebar';
 import LoginPage from './pages/LoginPage';
@@ -20,15 +20,21 @@ function ProtectedRoute({ children, adminOnly = false }) {
   return children;
 }
 
-function AppLayout() {
+function AppLayout({ isDarkTheme, toggleTheme }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   return (
     <div className={`app-layout ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
-      <Sidebar collapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed(!sidebarCollapsed)} />
+      <Sidebar 
+        collapsed={sidebarCollapsed} 
+        onToggle={() => setSidebarCollapsed(!sidebarCollapsed)} 
+        isDarkTheme={isDarkTheme}
+        toggleTheme={toggleTheme}
+      />
       <main className="main-content">
         <Routes>
           <Route path="/" element={<DashboardPage />} />
+          <Route path="/today" element={<DashboardPage />} />
           <Route path="/favorites" element={<FavoritesPage />} />
           <Route path="/tags" element={<TagsPage />} />
           <Route path="/sources" element={<SourcesPage />} />
@@ -43,12 +49,29 @@ function AppLayout() {
 }
 
 export default function App() {
+  const [isDarkTheme, setIsDarkTheme] = useState(() => {
+    const saved = localStorage.getItem('meejahse_theme');
+    return saved ? saved === 'dark' : true;
+  });
+
+  useEffect(() => {
+    if (isDarkTheme) {
+      document.body.classList.remove('light-theme');
+      localStorage.setItem('meejahse_theme', 'dark');
+    } else {
+      document.body.classList.add('light-theme');
+      localStorage.setItem('meejahse_theme', 'light');
+    }
+  }, [isDarkTheme]);
+
+  const toggleTheme = () => setIsDarkTheme(!isDarkTheme);
+
   return (
     <BrowserRouter>
       <AuthProvider>
         <Routes>
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/*" element={<ProtectedRoute><AppLayout /></ProtectedRoute>} />
+          <Route path="/login" element={<LoginPage isDarkTheme={isDarkTheme} toggleTheme={toggleTheme} />} />
+          <Route path="/*" element={<ProtectedRoute><AppLayout isDarkTheme={isDarkTheme} toggleTheme={toggleTheme} /></ProtectedRoute>} />
         </Routes>
       </AuthProvider>
     </BrowserRouter>

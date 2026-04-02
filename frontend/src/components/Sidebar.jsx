@@ -1,37 +1,51 @@
 import { useState, useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { tagsApi } from '../services/api';
+import { tagsApi, newsApi } from '../services/api';
+import {
+  Newspaper, Calendar, Star, Tags, Radio, Bell, 
+  BarChart, Users, FileText, Zap, LogOut, Sun, Moon
+} from 'lucide-react';
 
 const NAV_ITEMS = [
-  { path: '/', icon: '📰', label: 'Haberler' },
-  { path: '/favorites', icon: '⭐', label: 'Favoriler' },
-  { path: '/tags', icon: '🏷️', label: 'Etiketler' },
-  { path: '/sources', icon: '📡', label: 'Kaynaklar' },
-  { path: '/notifications', icon: '🔔', label: 'Bildirimler' },
+  { path: '/', icon: <Newspaper size={18} />, label: 'Haberler', key: 'news' },
+  { path: '/today', icon: <Calendar size={18} />, label: 'Bugün Ne Oldu', key: 'today' },
+  { path: '/favorites', icon: <Star size={18} />, label: 'Favoriler', key: 'favs' },
+  { path: '/tags', icon: <Tags size={18} />, label: 'Etiketler', key: 'tags' },
+  { path: '/sources', icon: <Radio size={18} />, label: 'Kaynaklar', key: 'sources' },
+  { path: '/notifications', icon: <Bell size={18} />, label: 'Bildirimler', key: 'notifs' },
 ];
 
 const ADMIN_ITEMS = [
-  { path: '/admin', icon: '📊', label: 'Yönetim Paneli' },
-  { path: '/admin/users', icon: '👥', label: 'Kullanıcılar' },
-  { path: '/admin/logs', icon: '📋', label: 'Tarama Logları' },
+  { path: '/admin', icon: <BarChart size={18} />, label: 'Yönetim Paneli' },
+  { path: '/admin/users', icon: <Users size={18} />, label: 'Kullanıcılar' },
+  { path: '/admin/logs', icon: <FileText size={18} />, label: 'Tarama Logları' },
 ];
 
-export default function Sidebar({ collapsed, onToggle }) {
+export default function Sidebar({ collapsed, onToggle, isDarkTheme, toggleTheme }) {
   const { user, logout, isAdmin } = useAuth();
   const [tags, setTags] = useState([]);
+  const [todayUnread, setTodayUnread] = useState(0);
   const location = useLocation();
 
   useEffect(() => {
     tagsApi.list().then(r => setTags(r.data)).catch(() => {});
+    
+    const fetchCount = async () => {
+      try {
+        const { data } = await newsApi.count();
+        if (data.today_unread !== undefined) setTodayUnread(data.today_unread);
+      } catch (e) {}
+    };
+    fetchCount();
   }, [location.pathname]);
 
   return (
     <aside className={`sidebar ${collapsed ? 'collapsed' : ''}`}>
       <div className="sidebar-header">
         <div className="logo" onClick={onToggle}>
-          <span className="logo-icon">⚡</span>
-          {!collapsed && <span className="logo-text">Meejahse</span>}
+          <span className="logo-icon"><Zap size={24} color="var(--accent)" /></span>
+          {!collapsed && <span className="logo-text">Haber Ajanı</span>}
         </div>
       </div>
 
@@ -47,7 +61,12 @@ export default function Sidebar({ collapsed, onToggle }) {
               title={item.label}
             >
               <span className="nav-icon">{item.icon}</span>
-              {!collapsed && <span className="nav-label">{item.label}</span>}
+              {!collapsed && (
+                <span className="nav-label">
+                  {item.label}
+                  {item.key === 'today' && todayUnread > 0 && ` (${todayUnread})`}
+                </span>
+              )}
             </NavLink>
           ))}
         </div>
@@ -96,8 +115,21 @@ export default function Sidebar({ collapsed, onToggle }) {
             </div>
           )}
         </div>
+        
+        <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem' }}>
+          <button 
+            className="btn btn-outline" 
+            style={{ flex: 1, padding: '0.5rem', justifyContent: 'center' }}
+            onClick={toggleTheme}
+            title={isDarkTheme ? 'Açık Tema' : 'Koyu Tema'}
+          >
+            {isDarkTheme ? <Sun size={16} /> : <Moon size={16} />} 
+            {!collapsed && <span style={{ marginLeft: '4px' }}>{isDarkTheme ? 'Açık Tema' : 'Koyu Tema'}</span>}
+          </button>
+        </div>
+
         <button className="logout-btn" onClick={logout} title="Çıkış">
-          {collapsed ? '🚪' : 'Çıkış Yap'}
+          {collapsed ? <LogOut size={16} /> : <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}><LogOut size={16} /> Çıkış Yap</span>}
         </button>
       </div>
     </aside>

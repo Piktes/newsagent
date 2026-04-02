@@ -49,3 +49,46 @@ class BaseNewsEngine(ABC):
         if ' ' in query and not query.startswith('"'):
             return f'"{query}"'
         return query
+
+    @staticmethod
+    def _search_google_news_rss(query: str, max_results: int = 15, site_filter: Optional[str] = None, source_icon: str = "🌐") -> List[NewsResult]:
+        """Search Google News RSS feed as a reliable fallback for blocked DuckDuckGo searches."""
+        import feedparser
+        import urllib.parse
+        from bs4 import BeautifulSoup
+        
+        results = []
+        try:
+            exact_q = BaseNewsEngine.exact_query(query)
+            if site_filter:
+                exact_q += f" {site_filter}"
+                
+            q = urllib.parse.quote(exact_q)
+            url = f"https://news.google.com/rss/search?q={q}&hl=tr&gl=TR&ceid=TR:tr"
+            
+            feed = feedparser.parse(url)
+            for entry in feed.entries[:max_results]:
+                summary_text = entry.get("summary", "")
+                if summary_text and "<" in summary_text:
+                    try:
+                        soup = BeautifulSoup(summary_text, "html.parser")
+                        summary_text = soup.get_text(separator=" ", strip=True)
+                    except:
+                        pass
+                
+                source_obj = entry.get("source", {})
+                publisher = source_obj.get("title", "") if isinstance(source_obj, dict) else ""
+                source_name = f"{source_icon} {publisher}" if publisher else f"{source_icon} {site_filter or 'Web'}"
+                
+                results.append(NewsResult(
+                    title=entry.get("title", ""),
+                    url=entry.get("link", ""),
+                    summary=summary_text[:300] if summary_text else None,
+                    source_name=source_name,
+                    published_at=entry.get("published"),
+                    source_url=entry.get("link", "")
+                ))
+        except Exception as e:
+            print(f"[Google News RSS] Hata: {e}")
+            
+        return results

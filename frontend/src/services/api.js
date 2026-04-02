@@ -51,6 +51,8 @@ export const tagsApi = {
   create: (data) => api.post('/tags/', data),
   update: (id, data) => api.put(`/tags/${id}`, data),
   delete: (id) => api.delete(`/tags/${id}`),
+  scan: (id) => api.post(`/tags/${id}/scan`),
+  scanAll: () => api.post(`/tags/scan-all`),
 };
 
 // ─── Sources ──────────────────────────────────────────
@@ -66,7 +68,7 @@ export const sourcesApi = {
 export const newsApi = {
   list: (params) => api.get('/news/', { params }),
   get: (id) => api.get(`/news/${id}`),
-  count: () => api.get('/news/count'),
+  count: (params) => api.get('/news/count', { params }),
   toggleRead: (id) => api.put(`/news/${id}/read`),
   toggleFavorite: (id) => api.put(`/news/${id}/favorite`),
   updateNote: (id, note) => api.put(`/news/${id}/note`, { note }),

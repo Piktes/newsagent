@@ -1,5 +1,16 @@
 import { useState } from 'react';
+import { TrendingUp, Minus, TrendingDown } from 'lucide-react';
 import { newsApi } from '../services/api';
+
+const decodeHtml = (html) => {
+  if (!html) return '';
+  const txt = document.createElement('textarea');
+  txt.innerHTML = html;
+  let decoded = txt.value;
+  // Fallback for tricky spaces
+  decoded = decoded.replace(/&nbsp;/g, ' ').replace(/&quot;/g, '"');
+  return decoded;
+};
 
 export default function NewsCard({ item, onUpdate }) {
   const [loading, setLoading] = useState(false);
@@ -119,8 +130,8 @@ export default function NewsCard({ item, onUpdate }) {
 
         {item.sentiment && (
           <span className={`sentiment-badge sentiment-${item.sentiment}`} title={`Güven: %${Math.round((item.sentiment_score || 0) * 100)}`}>
-            <span className="sentiment-emoji">
-              {item.sentiment === 'positive' ? '😊' : item.sentiment === 'negative' ? '😟' : '😐'}
+            <span className="sentiment-emoji" style={{ display: 'inline-flex', alignItems: 'center' }}>
+              {item.sentiment === 'positive' ? <TrendingUp size={14} /> : item.sentiment === 'negative' ? <TrendingDown size={14} /> : <Minus size={14} />}
             </span>
             <span className="sentiment-label">
               {item.sentiment === 'positive' ? 'Pozitif' : item.sentiment === 'negative' ? 'Negatif' : 'Nötr'}
@@ -131,8 +142,8 @@ export default function NewsCard({ item, onUpdate }) {
           </span>
         )}
 
-        <h3 className="news-title">{item.title}</h3>
-        {item.summary && <p className="news-summary">{item.summary}</p>}
+        <h3 className="news-title">{decodeHtml(item.title)}</h3>
+        {item.summary && <p className="news-summary">{decodeHtml(item.summary)}</p>}
 
         {/* Existing note display */}
         {item.user_note && !showNote && (

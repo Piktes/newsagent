@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { notificationsApi, tagsApi } from '../services/api';
+import { Bell, BellOff, Monitor, Mail, Trash2 } from 'lucide-react';
 
 export default function NotificationsPage() {
   const [prefs, setPrefs] = useState([]);
@@ -50,9 +51,9 @@ export default function NotificationsPage() {
   return (
     <div className="dashboard-page">
       <div className="page-header">
-        <h1>🔔 Bildirim Tercihleri</h1>
-        <button className="btn btn-outline" onClick={requestPermission}>
-          🔔 Bildirim İzni Ver
+        <h1 style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}><Bell size={28} /> Bildirim Tercihleri</h1>
+        <button className="btn btn-outline" onClick={requestPermission} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <Bell size={18} /> Bildirim İzni Ver
         </button>
       </div>
 
@@ -83,7 +84,7 @@ export default function NotificationsPage() {
           <div className="loading-state"><div className="spinner large"></div></div>
         ) : prefs.length === 0 ? (
           <div className="empty-state">
-            <span className="empty-icon">🔕</span>
+            <span className="empty-icon"><BellOff size={48} color="var(--text-muted)" /></span>
             <h3>Bildirim tercihi yok</h3>
             <p>Etiket bazlı bildirim ekleyin</p>
           </div>
@@ -92,15 +93,15 @@ export default function NotificationsPage() {
             <div key={pref.id} className="pref-card">
               <div className="pref-info">
                 <h3>{pref.tag_name}</h3>
-                <span className="pref-method">
-                  {pref.method === 'desktop' && '🖥️ Masaüstü'}
-                  {pref.method === 'email' && '📧 E-posta'}
-                  {pref.method === 'both' && '🖥️ + 📧 İkisi'}
+                <span className="pref-method" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  {pref.method === 'desktop' && <><Monitor size={14} /> Masaüstü</>}
+                  {pref.method === 'email' && <><Mail size={14} /> E-posta</>}
+                  {pref.method === 'both' && <><Monitor size={14} /> + <Mail size={14} /> İkisi</>}
                 </span>
               </div>
               <div className="pref-actions">
                 <span className={`status-dot ${pref.enabled ? 'active' : 'inactive'}`}></span>
-                <button className="btn btn-sm btn-danger" onClick={() => handleDelete(pref.id)}>🗑️</button>
+                <button className="btn btn-sm btn-danger" onClick={() => handleDelete(pref.id)}><Trash2 size={14} /></button>
               </div>
             </div>
           ))

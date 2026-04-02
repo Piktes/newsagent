@@ -111,6 +111,7 @@ def news_count(
 
     # Total today
     total_today = base.filter(NewsItem.fetched_at >= today_start).count()
+    today_unread = base.filter(NewsItem.fetched_at >= today_start, NewsItem.is_read == False).count()
 
     # Sentiment distribution
     sentiment_positive = base.filter(NewsItem.sentiment == "positive").count()
@@ -125,6 +126,7 @@ def news_count(
         "unread": unread,
         "favorites": favorites,
         "today": total_today,
+        "today_unread": today_unread,
         "by_source": source_counts,
         "sentiment": {
             "positive": sentiment_positive,

@@ -1,0 +1,16 @@
+Traceback (most recent call last):
+  File "C:\Users\HP\.gemini\antigravity\scratch\meejahse\backend\test_wrapper.py", line 4, in <module>
+    test2.debug()
+    ~~~~~~~~~~~^^
+  File "C:\Users\HP\.gemini\antigravity\scratch\meejahse\backend\test2.py", line 11, in debug
+    search_results = ddgs.text(
+        query=f"{exact_q} site:x.com OR site:twitter.com",
+        region="tr-tr",
+        max_results=5
+    )
+  File "C:\Users\HP\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\ddgs\ddgs.py", line 219, in text
+    return self._search("text", query, **kwargs)
+           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\HP\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\ddgs\ddgs.py", line 215, in _search
+    raise DDGSException(err or "No results found.")
+ddgs.exceptions.DDGSException: RequestError: RequestError('error sending request for url (https://search.yahoo.com/search;_ylt=sQSFpDqq1dfwrHf4Tgq8OuZ6;_ylu=PG9j6qW1q8dT3LlOB2AcopMiOrvPIJo3r8yOUjCr5eObXwQ?p=%22Milli+E%C4%9Fitim+Bakanl%C4%B1%C4%9F%C4%B1%22+site%3Ax.com+OR+site%3Atwitter.com)', 'https://search.yahoo.com/search;_ylt=sQSFpDqq1dfwrHf4Tgq8OuZ6;_ylu=PG9j6qW1q8dT3LlOB2AcopMiOrvPIJo3r8yOUjCr5eObXwQ?p=%22Milli+E%C4%9Fitim+Bakanl%C4%B1%C4%9F%C4%B1%22+site%3Ax.com+OR+site%3Atwitter.com')

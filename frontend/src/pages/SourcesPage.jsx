@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { sourcesApi } from '../services/api';
+import { Radio } from 'lucide-react';
 
 const SOURCE_TYPES = [
   { value: 'rss', label: 'RSS Feed', icon: '📡' },
@@ -64,7 +65,7 @@ export default function SourcesPage() {
   return (
     <div className="dashboard-page">
       <div className="page-header">
-        <h1>📡 Haber Kaynakları</h1>
+        <h1 style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}><Radio size={28} /> Haber Kaynakları</h1>
         <button className="btn btn-primary" onClick={() => setShowForm(!showForm)}>
           {showForm ? '✕ İptal' : '+ Yeni Kaynak'}
         </button>
@@ -136,8 +137,8 @@ export default function SourcesPage() {
           <div className="loading-state"><div className="spinner large"></div></div>
         ) : sources.length === 0 ? (
           <div className="empty-state">
-            <span className="empty-icon">📡</span>
-            <h3>Henüz kaynak yok</h3>
+            <span className="empty-icon"><Radio size={48} color="var(--text-muted)" /></span>
+            <h3>Kaynak tanımlanmamış</h3>
             <p>Kaynak eklenmeden de Google News RSS ile haber taranır</p>
           </div>
         ) : (

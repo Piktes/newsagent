@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useLocation } from 'react-router-dom';
+import { TrendingUp, Minus, TrendingDown, Activity, Newspaper, Calendar, RefreshCw } from 'lucide-react';
 import { newsApi, tagsApi } from '../services/api';
 import NewsCard from '../components/NewsCard';
 
@@ -9,12 +10,15 @@ export default function DashboardPage() {
   const [counts, setCounts] = useState({ total: 0, unread: 0, favorites: 0, sentiment: { positive: 0, neutral: 0, negative: 0, unknown: 0 } });
   const [loading, setLoading] = useState(true);
   const [searchParams, setSearchParams] = useSearchParams();
+  const location = useLocation();
   const [searchQuery, setSearchQuery] = useState('');
   const [page, setPage] = useState(1);
   const [sortOrder, setSortOrder] = useState('desc');
   const [selectedTagId, setSelectedTagId] = useState('');
   const [selectedSentiment, setSelectedSentiment] = useState('');
+  const [scanning, setScanning] = useState(false);
 
+  const isToday = location.pathname === '/today';
   const tagFilter = searchParams.get('tag') || selectedTagId;
 
   const fetchNews = async () => {
@@ -24,6 +28,16 @@ export default function DashboardPage() {
       if (tagFilter) params.tag_id = tagFilter;
       if (searchQuery) params.query = searchQuery;
       if (selectedSentiment) params.sentiment = selectedSentiment;
+      
+      if (isToday) {
+        const startOfToday = new Date();
+        startOfToday.setHours(0, 0, 0, 0);
+        const endOfToday = new Date();
+        endOfToday.setHours(23, 59, 59, 999);
+        params.date_from = startOfToday.toISOString();
+        params.date_to = endOfToday.toISOString();
+      }
+
       const res = await newsApi.list(params);
       setNews(res.data);
     } catch (err) {
@@ -32,9 +46,10 @@ export default function DashboardPage() {
     setLoading(false);
   };
 
+
   const fetchCounts = async () => {
     try {
-      const res = await newsApi.count();
+      const res = await newsApi.count(tagFilter ? { tag_id: tagFilter } : {});
       setCounts(res.data);
     } catch (err) {
       console.error(err);
@@ -45,7 +60,8 @@ export default function DashboardPage() {
     fetchNews();
     fetchCounts();
     tagsApi.list().then(r => setTags(r.data)).catch(() => {});
-  }, [tagFilter, page, sortOrder, selectedSentiment]);
+  }, [tagFilter, page, sortOrder, selectedSentiment, isToday]);
+
 
   // Sync URL tag param with dropdown
   useEffect(() => {
@@ -55,10 +71,24 @@ export default function DashboardPage() {
     }
   }, [searchParams]);
 
-  const handleSearch = (e) => {
+  const handleSearch = async (e) => {
     e.preventDefault();
     setPage(1);
     fetchNews();
+
+    if (!scanning) {
+      setScanning(true);
+      try {
+        if (tagFilter && tagFilter !== "all" && tagFilter !== "") {
+          await tagsApi.scan(tagFilter);
+        } else {
+          await tagsApi.scanAll();
+        }
+      } catch (err) {
+        console.error('Scan trigger error:', err);
+      }
+      setTimeout(() => setScanning(false), 2000); // Visual feedback clear
+    }
   };
 
   const handleSortChange = (newSort) => {
@@ -81,18 +111,9 @@ export default function DashboardPage() {
     setPage(1);
   };
 
-  const handleExport = async () => {
-    try {
-      const res = await newsApi.exportCsv(tagFilter);
-      const url = URL.createObjectURL(new Blob([res.data]));
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'meejahse_haberler.csv';
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error(err);
-    }
+  const handleUpdate = () => {
+    fetchNews();
+    fetchCounts();
   };
 
   // Sentiment bar percentages
@@ -106,81 +127,89 @@ export default function DashboardPage() {
   return (
     <div className="dashboard-page">
       <div className="page-header">
-        <h1>📰 Haber Akışı</h1>
+        <h1 style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          {isToday ? <><Calendar size={28} /> Bugün Ne Oldu</> : <><Newspaper size={28} /> Haber Akışı</>}
+        </h1>
         <div className="header-actions">
-          <button className="btn btn-outline" onClick={handleExport}>📥 CSV İndir</button>
+
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="stats-row">
-        <div className="stat-card">
-          <span className="stat-value">{counts.total}</span>
-          <span className="stat-label">Toplam Haber</span>
-        </div>
-        <div className="stat-card accent">
-          <span className="stat-value">{counts.unread}</span>
-          <span className="stat-label">Okunmamış</span>
-        </div>
-        <div className="stat-card gold">
-          <span className="stat-value">{counts.favorites}</span>
-          <span className="stat-label">Favori</span>
-        </div>
-      </div>
-
-      {/* Sentiment Distribution */}
-      {sentimentTotal > 0 && (
-        <div className="sentiment-section">
-          <h3 className="sentiment-section-title">🧠 Duygu Analizi Dağılımı</h3>
-          <div className="sentiment-cards">
-            <div
-              className={`sentiment-stat-card positive ${selectedSentiment === 'positive' ? 'selected' : ''}`}
-              onClick={() => handleSentimentFilter('positive')}
-            >
-              <span className="sentiment-stat-emoji">😊</span>
-              <span className="sentiment-stat-value">{counts.sentiment?.positive || 0}</span>
-              <span className="sentiment-stat-label">Pozitif</span>
-              <span className="sentiment-stat-pct">{sentimentPct.positive}%</span>
+      {/* Stats - Only visible on main feed */}
+      {!isToday && (
+        <>
+          <div className="stats-row">
+            <div className="stat-card">
+              <span className="stat-value">{counts.total}</span>
+              <span className="stat-label">Toplam Haber</span>
             </div>
-            <div
-              className={`sentiment-stat-card neutral ${selectedSentiment === 'neutral' ? 'selected' : ''}`}
-              onClick={() => handleSentimentFilter('neutral')}
-            >
-              <span className="sentiment-stat-emoji">😐</span>
-              <span className="sentiment-stat-value">{counts.sentiment?.neutral || 0}</span>
-              <span className="sentiment-stat-label">Nötr</span>
-              <span className="sentiment-stat-pct">{sentimentPct.neutral}%</span>
+            <div className="stat-card accent">
+              <span className="stat-value">{counts.unread}</span>
+              <span className="stat-label">Okunmamış</span>
             </div>
-            <div
-              className={`sentiment-stat-card negative ${selectedSentiment === 'negative' ? 'selected' : ''}`}
-              onClick={() => handleSentimentFilter('negative')}
-            >
-              <span className="sentiment-stat-emoji">😟</span>
-              <span className="sentiment-stat-value">{counts.sentiment?.negative || 0}</span>
-              <span className="sentiment-stat-label">Negatif</span>
-              <span className="sentiment-stat-pct">{sentimentPct.negative}%</span>
+            <div className="stat-card gold">
+              <span className="stat-value">{counts.favorites}</span>
+              <span className="stat-label">Favori</span>
             </div>
           </div>
 
-          {/* Sentiment Bar */}
-          <div className="sentiment-bar">
-            {sentimentPct.positive > 0 && (
-              <div className="sentiment-bar-segment positive" style={{ width: `${sentimentPct.positive}%` }}>
-                {sentimentPct.positive > 8 && `${sentimentPct.positive}%`}
+          {/* Sentiment Distribution */}
+          {sentimentTotal > 0 && (
+            <div className="sentiment-section">
+              <h3 className="sentiment-section-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Activity size={20} /> Tutum Analizi Dağılımı
+              </h3>
+              <div className="sentiment-cards">
+                <div
+                  className={`sentiment-stat-card positive ${selectedSentiment === 'positive' ? 'selected' : ''}`}
+                  onClick={() => handleSentimentFilter('positive')}
+                >
+                  <span className="sentiment-stat-emoji"><TrendingUp size={28} /></span>
+                  <span className="sentiment-stat-value">{counts.sentiment?.positive || 0}</span>
+                  <span className="sentiment-stat-label">Pozitif</span>
+                  <span className="sentiment-stat-pct">{sentimentPct.positive}%</span>
+                </div>
+                <div
+                  className={`sentiment-stat-card neutral ${selectedSentiment === 'neutral' ? 'selected' : ''}`}
+                  onClick={() => handleSentimentFilter('neutral')}
+                >
+                  <span className="sentiment-stat-emoji"><Minus size={28} /></span>
+                  <span className="sentiment-stat-value">{counts.sentiment?.neutral || 0}</span>
+                  <span className="sentiment-stat-label">Nötr</span>
+                  <span className="sentiment-stat-pct">{sentimentPct.neutral}%</span>
+                </div>
+                <div
+                  className={`sentiment-stat-card negative ${selectedSentiment === 'negative' ? 'selected' : ''}`}
+                  onClick={() => handleSentimentFilter('negative')}
+                >
+                  <span className="sentiment-stat-emoji"><TrendingDown size={28} /></span>
+                  <span className="sentiment-stat-value">{counts.sentiment?.negative || 0}</span>
+                  <span className="sentiment-stat-label">Negatif</span>
+                  <span className="sentiment-stat-pct">{sentimentPct.negative}%</span>
+                </div>
               </div>
-            )}
-            {sentimentPct.neutral > 0 && (
-              <div className="sentiment-bar-segment neutral" style={{ width: `${sentimentPct.neutral}%` }}>
-                {sentimentPct.neutral > 8 && `${sentimentPct.neutral}%`}
+
+              {/* Sentiment Bar */}
+              <div className="sentiment-bar">
+                {sentimentPct.positive > 0 && (
+                  <div className="sentiment-bar-segment positive" style={{ width: `${sentimentPct.positive}%` }}>
+                    {sentimentPct.positive > 8 && `${sentimentPct.positive}%`}
+                  </div>
+                )}
+                {sentimentPct.neutral > 0 && (
+                  <div className="sentiment-bar-segment neutral" style={{ width: `${sentimentPct.neutral}%` }}>
+                    {sentimentPct.neutral > 8 && `${sentimentPct.neutral}%`}
+                  </div>
+                )}
+                {sentimentPct.negative > 0 && (
+                  <div className="sentiment-bar-segment negative" style={{ width: `${sentimentPct.negative}%` }}>
+                    {sentimentPct.negative > 8 && `${sentimentPct.negative}%`}
+                  </div>
+                )}
               </div>
-            )}
-            {sentimentPct.negative > 0 && (
-              <div className="sentiment-bar-segment negative" style={{ width: `${sentimentPct.negative}%` }}>
-                {sentimentPct.negative > 8 && `${sentimentPct.negative}%`}
-              </div>
-            )}
-          </div>
-        </div>
+            </div>
+          )}
+        </>
       )}
 
       {/* Search */}
@@ -191,7 +220,10 @@ export default function DashboardPage() {
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
-        <button type="submit" className="btn btn-primary">🔍 Ara</button>
+        <button type="submit" className="btn btn-primary" disabled={scanning}>
+          {scanning ? <RefreshCw size={16} className="spin" /> : '🔍'} 
+          {scanning ? ' Aranıyor...' : ' Ara'}
+        </button>
       </form>
 
       {/* Filters */}
@@ -231,16 +263,16 @@ export default function DashboardPage() {
         </div>
 
         <div className="filter-group">
-          <label className="filter-label">🧠 Duygu</label>
+          <label className="filter-label">🎯 Tutum</label>
           <select
             className="filter-select"
             value={selectedSentiment}
             onChange={(e) => handleSentimentFilter(e.target.value)}
           >
-            <option value="">Tüm Duygular</option>
-            <option value="positive">😊 Pozitif</option>
-            <option value="neutral">😐 Nötr</option>
-            <option value="negative">😟 Negatif</option>
+            <option value="">Tüm Tutumlar</option>
+            <option value="positive">↗️ Pozitif</option>
+            <option value="neutral">➡️ Nötr</option>
+            <option value="negative">↘️ Negatif</option>
           </select>
         </div>
 

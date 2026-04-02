@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { adminApi } from '../services/api';
+import { FileText } from 'lucide-react';
 
 export default function ScanLogsPage() {
   const [logs, setLogs] = useState([]);
@@ -41,8 +42,10 @@ export default function ScanLogsPage() {
   return (
     <div className="dashboard-page">
       <div className="page-header">
-        <h1>📋 Tarama Logları</h1>
-        <button className="btn btn-danger" onClick={handleClear}>🗑️ Logları Temizle</button>
+        <h1 style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}><FileText size={28} /> Tarama Logları</h1>
+        <button className="btn btn-outline btn-danger" onClick={handleClear} title="Tüm logları temizle">
+          🗑️ Temizle
+        </button>
       </div>
 
       <div className="users-table-wrapper">

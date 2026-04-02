@@ -84,3 +84,29 @@ def delete_tag(
 
     db.delete(tag)
     db.commit()
+
+
+@router.post("/{tag_id}/scan", status_code=202)
+def scan_tag_manually(
+    tag_id: int,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    tag = db.query(Tag).filter(Tag.id == tag_id, Tag.user_id == current_user.id).first()
+    if not tag:
+        raise HTTPException(status_code=404, detail="Etiket bulunamadı")
+
+    background_tasks.add_task(scan_for_user_tag, current_user.id, tag.id)
+    return {"message": "Tarama arka planda başlatıldı."}
+
+@router.post("/scan-all", status_code=202)
+def scan_all_user_tags(
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    tags = db.query(Tag).filter(Tag.user_id == current_user.id).all()
+    for tag in tags:
+        background_tasks.add_task(scan_for_user_tag, current_user.id, tag.id)
+    return {"message": f"{len(tags)} etiket için tarama başlatıldı."}

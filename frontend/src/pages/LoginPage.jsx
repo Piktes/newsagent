@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { Zap, Sun, Moon } from 'lucide-react';
 
-export default function LoginPage() {
+export default function LoginPage({ isDarkTheme, toggleTheme }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -30,10 +31,21 @@ export default function LoginPage() {
         <div className="login-orb login-orb-2"></div>
         <div className="login-orb login-orb-3"></div>
       </div>
+
       <div className="login-card">
+        <button 
+          type="button"
+          className="btn btn-outline" 
+          style={{ position: 'absolute', top: '20px', right: '20px', padding: '0.5rem', borderRadius: '50%' }}
+          onClick={toggleTheme}
+          title="Tema Değiştir"
+        >
+          {isDarkTheme ? <Sun size={18} /> : <Moon size={18} />}
+        </button>
+
         <div className="login-logo">
-          <span className="login-logo-icon">⚡</span>
-          <h1>Meejahse</h1>
+          <span className="login-logo-icon"><Zap size={48} color="var(--accent)" /></span>
+          <h1>Haber Ajanı</h1>
           <p className="login-subtitle">Sosyal Medya Haber Ajanı</p>
         </div>
 

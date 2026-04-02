@@ -20,14 +20,14 @@ class TwitterEngine(BaseNewsEngine):
         """Search Twitter/X without API key using DuckDuckGo."""
         results = []
         try:
-            from duckduckgo_search import DDGS
+            from ddgs import DDGS
 
             region = "tr-tr" if language == "tr" else "wt-wt"
             exact_q = self.exact_query(query)
 
             with DDGS() as ddgs:
                 search_results = ddgs.text(
-                    keywords=f"{exact_q} site:x.com OR site:twitter.com",
+                    query=f"{exact_q} twitter",
                     region=region,
                     max_results=max_results
                 )
@@ -39,11 +39,6 @@ class TwitterEngine(BaseNewsEngine):
 
                     title = item.get("title", "")
                     body = item.get("body", "")
-
-                    # Relevance check
-                    tag_phrase = query.lower()
-                    if tag_phrase not in title.lower() and tag_phrase not in body.lower():
-                        continue
 
                     # Extract username from URL
                     username = "X"

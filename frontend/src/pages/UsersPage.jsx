@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { authApi } from '../services/api';
+import { Users } from 'lucide-react';
 
 export default function UsersPage() {
   const [users, setUsers] = useState([]);
@@ -54,8 +55,8 @@ export default function UsersPage() {
   return (
     <div className="dashboard-page">
       <div className="page-header">
-        <h1>👥 Kullanıcı Yönetimi</h1>
-        <button className="btn btn-primary" onClick={() => setShowForm(!showForm)}>
+        <h1 style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}><Users size={28} /> Kullanıcı Yönetimi</h1>
+        <button className="btn btn-primary" onClick={() => { setShowForm(!showForm); setEditId(null); setForm({ username: '', password: '', role: 'user' }); }}>
           {showForm ? '✕ İptal' : '+ Yeni Kullanıcı'}
         </button>
       </div>

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { newsApi } from '../services/api';
+import { Star } from 'lucide-react';
 import NewsCard from '../components/NewsCard';
 
 export default function FavoritesPage() {
@@ -22,7 +23,7 @@ export default function FavoritesPage() {
   return (
     <div className="dashboard-page">
       <div className="page-header">
-        <h1>⭐ Favoriler</h1>
+        <h1 style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}><Star size={28} /> Favoriler</h1>
         <span className="badge">{news.length} haber</span>
       </div>
 
@@ -34,7 +35,7 @@ export default function FavoritesPage() {
           </div>
         ) : news.length === 0 ? (
           <div className="empty-state">
-            <span className="empty-icon">⭐</span>
+            <span className="empty-icon"><Star size={48} color="var(--text-muted)" /></span>
             <h3>Favori haber yok</h3>
             <p>Haberleri yıldızlayarak favorilere ekleyin</p>
           </div>
