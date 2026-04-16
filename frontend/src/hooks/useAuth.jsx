@@ -8,14 +8,14 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem('meejahse_token');
-    const savedUser = localStorage.getItem('meejahse_user');
+    const token = localStorage.getItem('haberajani_token');
+    const savedUser = localStorage.getItem('haberajani_user');
     if (token && savedUser) {
       try {
         setUser(JSON.parse(savedUser));
       } catch {
-        localStorage.removeItem('meejahse_token');
-        localStorage.removeItem('meejahse_user');
+        localStorage.removeItem('haberajani_token');
+        localStorage.removeItem('haberajani_user');
       }
     }
     setLoading(false);
@@ -24,15 +24,15 @@ export function AuthProvider({ children }) {
   const login = async (username, password) => {
     const res = await authApi.login(username, password);
     const { access_token, user: userData } = res.data;
-    localStorage.setItem('meejahse_token', access_token);
-    localStorage.setItem('meejahse_user', JSON.stringify(userData));
+    localStorage.setItem('haberajani_token', access_token);
+    localStorage.setItem('haberajani_user', JSON.stringify(userData));
     setUser(userData);
     return userData;
   };
 
   const logout = () => {
-    localStorage.removeItem('meejahse_token');
-    localStorage.removeItem('meejahse_user');
+    localStorage.removeItem('haberajani_token');
+    localStorage.removeItem('haberajani_user');
     setUser(null);
   };
 

@@ -1,5 +1,5 @@
 """
-Meejahse - Scheduler
+Haberajani - Scheduler
 APScheduler-based news scanning with retry, duplicate detection, and logging.
 """
 import hashlib

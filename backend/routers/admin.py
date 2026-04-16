@@ -1,5 +1,5 @@
 """
-Meejahse - Admin Router
+Haberajani - Admin Router
 Dashboard stats, SMTP settings, scan logs (admin only).
 """
 from fastapi import APIRouter, Depends, HTTPException

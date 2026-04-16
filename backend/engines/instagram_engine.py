@@ -1,5 +1,5 @@
 """
-Meejahse - Instagram Engine
+Haberajani - Instagram Engine
 Search Instagram posts using duckduckgo_search (no API key needed).
 """
 from typing import List

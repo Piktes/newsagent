@@ -1,5 +1,5 @@
 """
-Meejahse - Twitter/X Engine
+Haberajani - Twitter/X Engine
 Search Twitter/X posts using duckduckgo_search (no API key needed)
 or Tweepy (with API key).
 """

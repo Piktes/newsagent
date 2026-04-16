@@ -1,5 +1,5 @@
 """
-Meejahse - YouTube Engine
+Haberajani - YouTube Engine
 Search YouTube videos using duckduckgo_search (no API key needed)
 or YouTube Data API v3 (with API key).
 """

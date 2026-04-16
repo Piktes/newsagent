@@ -1,5 +1,5 @@
 """
-Meejahse - Database Models
+Haberajani - Database Models
 All SQLAlchemy models for the application.
 """
 from sqlalchemy import (

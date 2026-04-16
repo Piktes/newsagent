@@ -1,5 +1,5 @@
 """
-Meejahse - NewsAPI Engine
+Haberajani - NewsAPI Engine
 Search news via NewsAPI.org (requires API key).
 """
 import requests

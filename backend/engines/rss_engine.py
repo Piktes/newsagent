@@ -1,5 +1,5 @@
 """
-Meejahse - RSS News Engine
+Haberajani - RSS News Engine
 Google News RSS and custom RSS feed parsing.
 """
 import feedparser

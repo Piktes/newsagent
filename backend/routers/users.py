@@ -1,5 +1,5 @@
 """
-Meejahse - Users Router
+Haberajani - Users Router
 Login, user CRUD, admin-only operations.
 """
 from fastapi import APIRouter, Depends, HTTPException, status

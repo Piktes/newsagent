@@ -1,5 +1,5 @@
 """
-Meejahse - News Router
+Haberajani - News Router
 News listing, search, read/favorite toggle, notes, and export.
 """
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -244,5 +244,5 @@ def export_csv(
     return StreamingResponse(
         iter([output.getvalue()]),
         media_type="text/csv",
-        headers={"Content-Disposition": "attachment; filename=meejahse_haberler.csv"}
+        headers={"Content-Disposition": "attachment; filename=haberajani_haberler.csv"}
     )

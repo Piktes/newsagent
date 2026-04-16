@@ -1,5 +1,5 @@
 """
-Meejahse - Ekşi Sözlük Engine
+Haberajani - Ekşi Sözlük Engine
 Search Ekşi Sözlük entries using duckduckgo_search (no API key needed).
 """
 from typing import List

@@ -50,17 +50,17 @@ function AppLayout({ isDarkTheme, toggleTheme }) {
 
 export default function App() {
   const [isDarkTheme, setIsDarkTheme] = useState(() => {
-    const saved = localStorage.getItem('meejahse_theme');
+    const saved = localStorage.getItem('haberajani_theme');
     return saved ? saved === 'dark' : true;
   });
 
   useEffect(() => {
     if (isDarkTheme) {
       document.body.classList.remove('light-theme');
-      localStorage.setItem('meejahse_theme', 'dark');
+      localStorage.setItem('haberajani_theme', 'dark');
     } else {
       document.body.classList.add('light-theme');
-      localStorage.setItem('meejahse_theme', 'light');
+      localStorage.setItem('haberajani_theme', 'light');
     }
   }, [isDarkTheme]);
 

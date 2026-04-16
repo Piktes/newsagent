@@ -1,5 +1,5 @@
 """
-Meejahse - Web Scraping Engine
+Haberajani - Web Scraping Engine
 Uses duckduckgo_search for reliable results without API key.
 """
 from typing import List

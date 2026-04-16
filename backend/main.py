@@ -1,5 +1,5 @@
 """
-Meejahse - Main Application
+Haberajani - Main Application
 FastAPI app with CORS, lifespan, and router registration.
 """
 import sys
@@ -28,7 +28,7 @@ from routers.admin import router as admin_router
 async def lifespan(app: FastAPI):
     """Application startup and shutdown events."""
     # Startup
-    print("🚀 Meejahse başlatılıyor...")
+    print("🚀 Haberajani başlatılıyor...")
     init_db()
     print("✅ Veritabanı hazır")
 
@@ -46,11 +46,11 @@ async def lifespan(app: FastAPI):
 
     # Shutdown
     stop_scheduler()
-    print("👋 Meejahse kapatılıyor...")
+    print("👋 Haberajani kapatılıyor...")
 
 
 app = FastAPI(
-    title="Meejahse",
+    title="Haberajani",
     description="Sosyal Medya Haber Ajanı API",
     version="1.0.0",
     lifespan=lifespan
@@ -76,7 +76,7 @@ app.include_router(admin_router)
 
 @app.get("/")
 def root():
-    return {"message": "Meejahse API çalışıyor", "version": "1.0.0"}
+    return {"message": "Haberajani API çalışıyor", "version": "1.0.0"}
 
 
 @app.get("/health")

@@ -1,5 +1,5 @@
 """
-Meejahse - Tags Router
+Haberajani - Tags Router
 Tag CRUD with color and language settings.
 """
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks

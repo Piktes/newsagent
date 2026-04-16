@@ -1,5 +1,5 @@
 """
-Meejahse - Sources Router
+Haberajani - Sources Router
 News source CRUD with API quota tracking.
 """
 from fastapi import APIRouter, Depends, HTTPException

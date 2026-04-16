@@ -1,5 +1,5 @@
 """
-Meejahse - Pydantic Schemas
+Haberajani - Pydantic Schemas
 Request/Response models for API endpoints.
 """
 from pydantic import BaseModel, EmailStr, Field

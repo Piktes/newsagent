@@ -1,5 +1,5 @@
 """
-Meejahse - Sentiment Analysis Engine
+Haberajani - Sentiment Analysis Engine
 Uses incidelen/bert-base-turkish-sentiment-analysis-cased for Turkish sentiment analysis.
 Singleton pattern to load model once and reuse.
 """

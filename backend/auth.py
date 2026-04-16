@@ -1,5 +1,5 @@
 """
-Meejahse - Authentication Module
+Haberajani - Authentication Module
 JWT token management, password hashing, and super admin seeding.
 """
 from datetime import datetime, timedelta, timezone
@@ -18,7 +18,7 @@ from models import User, UserRole
 
 load_dotenv()
 
-SECRET_KEY = os.getenv("SECRET_KEY", "meejahse-secret")
+SECRET_KEY = os.getenv("SECRET_KEY", "haberajani-secret")
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "1440"))
 
@@ -85,7 +85,7 @@ def seed_super_admin(db: Session):
 
     admin = User(
         username=os.getenv("SUPER_ADMIN_USERNAME", "admin"),
-        email=os.getenv("SUPER_ADMIN_EMAIL", "admin@meejahse.local"),
+        email=os.getenv("SUPER_ADMIN_EMAIL", "admin@haberajani.local"),
         password_hash=hash_password(os.getenv("SUPER_ADMIN_PASSWORD", "admin123")),
         role=UserRole.SUPER_ADMIN,
         is_active=True

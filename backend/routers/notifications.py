@@ -1,5 +1,5 @@
 """
-Meejahse - Notifications Router
+Haberajani - Notifications Router
 Notification preferences and WebSocket endpoint.
 """
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect

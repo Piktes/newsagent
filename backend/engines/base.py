@@ -1,5 +1,5 @@
 """
-Meejahse - Base News Engine
+Haberajani - Base News Engine
 Abstract base class for all news scanning engines.
 """
 from abc import ABC, abstractmethod
