@@ -2,6 +2,7 @@
 Haberajani - Instagram Engine
 Search Instagram posts using duckduckgo_search (no API key needed).
 """
+from datetime import datetime, timezone
 from typing import List
 
 from engines.base import BaseNewsEngine, NewsResult
@@ -48,7 +49,7 @@ class InstagramEngine(BaseNewsEngine):
                         url=url,
                         summary=body[:300] if body else None,
                         source_name=f"📸 {username}",
-                        published_at=None,
+                        published_at=datetime.now(timezone.utc).isoformat(),
                         source_url=url
                     ))
         except Exception as e:

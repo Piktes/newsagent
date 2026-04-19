@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { notificationsApi, tagsApi } from '../services/api';
-import { Bell, BellOff, Monitor, Mail, Trash2 } from 'lucide-react';
+import { Bell, BellOff, Globe, Mail, Trash2, ShieldCheck } from 'lucide-react';
 
 export default function NotificationsPage() {
   const [prefs, setPrefs] = useState([]);
   const [tags, setTags] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [form, setForm] = useState({ tag_id: '', method: 'desktop', enabled: true });
+  const [form, setForm] = useState({ tag_id: '', method: 'browser', enabled: true });
+  const [notifPermission, setNotifPermission] = useState(typeof Notification !== 'undefined' ? Notification.permission : 'default');
 
   const fetchData = async () => {
     setLoading(true);
@@ -26,7 +27,7 @@ export default function NotificationsPage() {
     e.preventDefault();
     try {
       await notificationsApi.savePref({ ...form, tag_id: parseInt(form.tag_id) });
-      setForm({ tag_id: '', method: 'desktop', enabled: true });
+      setForm({ tag_id: '', method: 'browser', enabled: true });
       fetchData();
     } catch (err) {
       alert(err.response?.data?.detail || 'Hata oluştu');
@@ -42,9 +43,10 @@ export default function NotificationsPage() {
     }
   };
 
-  const requestPermission = () => {
+  const requestPermission = async () => {
     if ('Notification' in window) {
-      Notification.requestPermission();
+      const result = await Notification.requestPermission();
+      setNotifPermission(result);
     }
   };
 
@@ -52,9 +54,16 @@ export default function NotificationsPage() {
     <div className="dashboard-page">
       <div className="page-header">
         <h1 style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}><Bell size={28} /> Bildirim Tercihleri</h1>
-        <button className="btn btn-outline" onClick={requestPermission} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <Bell size={18} /> Bildirim İzni Ver
-        </button>
+        {notifPermission !== 'granted' && (
+          <button className="btn btn-outline" onClick={requestPermission} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <ShieldCheck size={18} /> Tarayıcı İzni Ver
+          </button>
+        )}
+        {notifPermission === 'granted' && (
+          <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--success)', fontSize: '0.85rem' }}>
+            <ShieldCheck size={16} /> Tarayıcı bildirimi aktif
+          </span>
+        )}
       </div>
 
       <form className="card form-card" onSubmit={handleSubmit}>
@@ -70,7 +79,7 @@ export default function NotificationsPage() {
           <div className="form-group">
             <label>Yöntem</label>
             <select value={form.method} onChange={(e) => setForm({ ...form, method: e.target.value })}>
-              <option value="desktop">Masaüstü</option>
+              <option value="browser">Tarayıcı</option>
               <option value="email">E-posta</option>
               <option value="both">İkisi</option>
             </select>
@@ -94,9 +103,9 @@ export default function NotificationsPage() {
               <div className="pref-info">
                 <h3>{pref.tag_name}</h3>
                 <span className="pref-method" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                  {pref.method === 'desktop' && <><Monitor size={14} /> Masaüstü</>}
+                  {(pref.method === 'browser' || pref.method === 'desktop') && <><Globe size={14} /> Tarayıcı</>}
                   {pref.method === 'email' && <><Mail size={14} /> E-posta</>}
-                  {pref.method === 'both' && <><Monitor size={14} /> + <Mail size={14} /> İkisi</>}
+                  {pref.method === 'both' && <><Globe size={14} /> + <Mail size={14} /> İkisi</>}
                 </span>
               </div>
               <div className="pref-actions">

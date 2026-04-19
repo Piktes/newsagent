@@ -2,6 +2,7 @@
 Haberajani - Ekşi Sözlük Engine
 Search Ekşi Sözlük entries using duckduckgo_search (no API key needed).
 """
+from datetime import datetime, timezone
 from typing import List
 
 from engines.base import BaseNewsEngine, NewsResult
@@ -37,7 +38,7 @@ class EksiSozlukEngine(BaseNewsEngine):
                         url=url,
                         summary=body[:300] if body else None,
                         source_name="📖 Ekşi Sözlük",
-                        published_at=None,
+                        published_at=datetime.now(timezone.utc).isoformat(),
                         source_url=url
                     ))
         except Exception as e:

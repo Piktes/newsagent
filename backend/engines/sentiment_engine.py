@@ -45,7 +45,7 @@ def _load_model():
         
         try:
             from transformers import pipeline
-            print(f"📥 Sentiment modeli yükleniyor: {MODEL_NAME}...")
+            print(f"[*] Sentiment modeli yukleniyor: {MODEL_NAME}...")
             _analyzer = pipeline(
                 "sentiment-analysis",
                 model=MODEL_NAME,
@@ -54,10 +54,10 @@ def _load_model():
                 truncation=True,
             )
             _model_loaded = True
-            print("✅ Sentiment modeli hazır!")
+            print("[OK] Sentiment modeli hazir!")
         except Exception as e:
             _model_error = str(e)
-            print(f"❌ Sentiment modeli yüklenemedi: {e}")
+            print(f"[ERROR] Sentiment modeli yuklenemedi: {e}")
 
 
 def analyze_sentiment(text: str) -> Tuple[Optional[str], Optional[float]]:

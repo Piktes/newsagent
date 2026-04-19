@@ -22,15 +22,20 @@ from routers.sources import router as sources_router
 from routers.news import router as news_router
 from routers.notifications import router as notifications_router
 from routers.admin import router as admin_router
+from routers.lists import router as lists_router
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application startup and shutdown events."""
+    import asyncio
+    import notification_bus
+    notification_bus.set_loop(asyncio.get_event_loop())
+
     # Startup
-    print("🚀 Haberajani başlatılıyor...")
+    print("[*] Haberajani baslatiliyor...")
     init_db()
-    print("✅ Veritabanı hazır")
+    print("[OK] Veritabani hazir")
 
     # Seed super admin
     db = SessionLocal()
@@ -46,7 +51,7 @@ async def lifespan(app: FastAPI):
 
     # Shutdown
     stop_scheduler()
-    print("👋 Haberajani kapatılıyor...")
+    print("[*] Haberajani kapatiliyor...")
 
 
 app = FastAPI(
@@ -70,6 +75,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["Content-Disposition", "Content-Length"],
 )
 
 # Register routers
@@ -79,6 +85,7 @@ app.include_router(sources_router)
 app.include_router(news_router)
 app.include_router(notifications_router)
 app.include_router(admin_router)
+app.include_router(lists_router)
 
 
 @app.get("/")

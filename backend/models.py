@@ -37,7 +37,7 @@ class Language(str, enum.Enum):
 
 class NotificationMethod(str, enum.Enum):
     EMAIL = "email"
-    DESKTOP = "desktop"
+    BROWSER = "browser"
     BOTH = "both"
 
 
@@ -119,6 +119,7 @@ class NewsItem(Base):
     source_url = Column(String(1000))  # original source URL (not Google News redirect)
     sentiment = Column(String(20))  # positive, neutral, negative
     sentiment_score = Column(Float)  # confidence score 0.0 - 1.0
+    is_hidden = Column(Boolean, default=False)
     tag_id = Column(Integer, ForeignKey("tags.id"), nullable=False)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
 
@@ -132,7 +133,7 @@ class NotificationPref(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     tag_id = Column(Integer, ForeignKey("tags.id"), nullable=False)
-    method = Column(SqlEnum(NotificationMethod), default=NotificationMethod.DESKTOP)
+    method = Column(SqlEnum(NotificationMethod), default=NotificationMethod.BROWSER)
     enabled = Column(Boolean, default=True)
 
     # Relationships
@@ -164,6 +165,29 @@ class ScanLog(Base):
 
     # Relationships
     source = relationship("NewsSource", back_populates="scan_logs")
+
+
+class FavoriteList(Base):
+    __tablename__ = "favorite_lists"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(200), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    items = relationship("FavoriteListItem", back_populates="fav_list", cascade="all, delete-orphan")
+
+
+class FavoriteListItem(Base):
+    __tablename__ = "favorite_list_items"
+
+    id = Column(Integer, primary_key=True, index=True)
+    list_id = Column(Integer, ForeignKey("favorite_lists.id"), nullable=False)
+    news_id = Column(Integer, ForeignKey("news_items.id"), nullable=False)
+    added_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    fav_list = relationship("FavoriteList", back_populates="items")
+    news_item = relationship("NewsItem")
 
 
 class SmtpSettings(Base):

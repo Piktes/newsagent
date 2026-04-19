@@ -1,9 +1,105 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams, useLocation } from 'react-router-dom';
-import { TrendingUp, Minus, TrendingDown, Activity, Newspaper, Calendar, RefreshCw } from 'lucide-react';
+import {
+  TrendingUp, Minus, TrendingDown, Activity, Newspaper, Calendar,
+  RefreshCw, FileDown, Search, Rss, Globe,
+  X, Filter, Check, ChevronDown, BellRing,
+  ArrowUpDown, Tag, BarChart2, SlidersHorizontal,
+} from 'lucide-react';
+import { FaYoutube, FaXTwitter, FaInstagram, FaQuoteLeft } from 'react-icons/fa6';
 import { newsApi, tagsApi } from '../services/api';
 import NewsCard from '../components/NewsCard';
 
+const SOURCE_OPTIONS = [
+  { value: 'rss',         label: 'RSS / Haber',    Icon: Rss },
+  { value: 'web',         label: 'Web',             Icon: Globe },
+  { value: 'youtube',     label: 'YouTube',         Icon: FaYoutube },
+  { value: 'twitter',     label: 'Twitter / X',     Icon: FaXTwitter },
+  { value: 'instagram',   label: 'Instagram',       Icon: FaInstagram },
+  { value: 'eksisozluk',  label: 'Ekşi Sözlük',     Icon: FaQuoteLeft },
+];
+
+/* ── Platform Seçim Popup ──────────────────────────────────────────── */
+function PlatformPopup({ selected, onConfirm, onClose }) {
+  const [local, setLocal] = useState(selected);
+  const toggle = (v) => setLocal(prev =>
+    prev.includes(v) ? prev.filter(x => x !== v) : [...prev, v]
+  );
+  const allSelected = local.length === SOURCE_OPTIONS.length;
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-content" onClick={e => e.stopPropagation()} style={{ textAlign: 'left', maxWidth: 360 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+          <h3 style={{ margin: 0, fontSize: '1rem', letterSpacing: '-0.32px' }}>Platform Seç</h3>
+          <button className="btn btn-sm btn-outline" onClick={onClose}><X size={14} /></button>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem', marginBottom: '1rem' }}>
+          {SOURCE_OPTIONS.map(({ value, label, Icon }) => (
+            <label key={value} style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', padding: '0.5rem 0.75rem', borderRadius: 'var(--radius-sm)', cursor: 'pointer', boxShadow: local.includes(value) ? 'var(--ring-accent)' : 'var(--ring)', background: local.includes(value) ? 'rgba(0,112,243,0.05)' : 'transparent' }}>
+              <input type="checkbox" checked={local.includes(value)} onChange={() => toggle(value)} style={{ display: 'none' }} />
+              <span style={{ width: 16, height: 16, borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', background: local.includes(value) ? 'var(--accent)' : 'transparent', boxShadow: local.includes(value) ? 'none' : 'var(--ring)', flexShrink: 0 }}>
+                {local.includes(value) && <Check size={11} color="white" />}
+              </span>
+              <Icon size={15} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+              <span style={{ fontSize: '0.875rem', fontWeight: 500 }}>{label}</span>
+            </label>
+          ))}
+        </div>
+        <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'space-between' }}>
+          <button className="btn btn-sm btn-outline" onClick={() => setLocal(allSelected ? [] : SOURCE_OPTIONS.map(s => s.value))}>
+            {allSelected ? 'Tümünü Kaldır' : 'Tümünü Seç'}
+          </button>
+          <button className="btn btn-primary btn-sm" onClick={() => onConfirm(local)} disabled={local.length === 0}>
+            Ara ({local.length})
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── PDF Etiket Seçim Popup ─────────────────────────────────────────── */
+function PdfPopup({ tags, onConfirm, onClose }) {
+  const [selected, setSelected] = useState(tags.map(t => t.id));
+  const toggle = (id) => setSelected(prev =>
+    prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+  );
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-content" onClick={e => e.stopPropagation()} style={{ textAlign: 'left', maxWidth: 360 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+          <h3 style={{ margin: 0, fontSize: '1rem', letterSpacing: '-0.32px' }}>PDF Raporu — Etiket Seç</h3>
+          <button className="btn btn-sm btn-outline" onClick={onClose}><X size={14} /></button>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem', marginBottom: '1rem' }}>
+          {tags.map(tag => (
+            <label key={tag.id} style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', padding: '0.5rem 0.75rem', borderRadius: 'var(--radius-sm)', cursor: 'pointer', boxShadow: selected.includes(tag.id) ? 'var(--ring-accent)' : 'var(--ring)', background: selected.includes(tag.id) ? 'rgba(0,112,243,0.05)' : 'transparent' }}>
+              <input type="checkbox" checked={selected.includes(tag.id)} onChange={() => toggle(tag.id)} style={{ display: 'none' }} />
+              <span style={{ width: 16, height: 16, borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', background: selected.includes(tag.id) ? 'var(--accent)' : 'transparent', boxShadow: selected.includes(tag.id) ? 'none' : 'var(--ring)', flexShrink: 0 }}>
+                {selected.includes(tag.id) && <Check size={11} color="white" />}
+              </span>
+              <span style={{ width: 8, height: 8, borderRadius: '50%', background: tag.color, flexShrink: 0 }} />
+              <span style={{ fontSize: '0.875rem', fontWeight: 500 }}>{tag.name}</span>
+            </label>
+          ))}
+        </div>
+        <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'space-between' }}>
+          <button className="btn btn-sm btn-outline" onClick={() => setSelected(selected.length === tags.length ? [] : tags.map(t => t.id))}>
+            {selected.length === tags.length ? 'Tümünü Kaldır' : 'Tümünü Seç'}
+          </button>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <button className="btn btn-sm btn-outline" onClick={onClose}>İptal</button>
+            <button className="btn btn-primary btn-sm" style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }} onClick={() => onConfirm(selected)} disabled={selected.length === 0}>
+              <FileDown size={14} /> Rapor Oluştur ({selected.length})
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Ana Bileşen ──────────────────────────────────────────────────── */
 export default function DashboardPage() {
   const [news, setNews] = useState([]);
   const [tags, setTags] = useState([]);
@@ -17,199 +113,273 @@ export default function DashboardPage() {
   const [selectedTagId, setSelectedTagId] = useState('');
   const [selectedSentiment, setSelectedSentiment] = useState('');
   const [scanning, setScanning] = useState(false);
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [exportingPdf, setExportingPdf] = useState(false);
+
+  // Platform popup
+  const [showPlatformPopup, setShowPlatformPopup] = useState(false);
+  const [selectedPlatforms, setSelectedPlatforms] = useState(SOURCE_OPTIONS.map(s => s.value));
+
+  // PDF popup
+  const [showPdfPopup, setShowPdfPopup] = useState(false);
+
+  // New news banner
+  const [newCount, setNewCount] = useState(0);
+  const [newTags, setNewTags] = useState([]);
+  const [newItemIds, setNewItemIds] = useState(new Set());
+  const [showNewOnly, setShowNewOnly] = useState(false);
+  const lastKnownIdRef = useRef(0);
 
   const isToday = location.pathname === '/today';
   const tagFilter = searchParams.get('tag') || selectedTagId;
 
-  const fetchNews = async () => {
+  const fetchNews = useCallback(async (sourcePlatforms) => {
     setLoading(true);
     try {
+      const platforms = sourcePlatforms || selectedPlatforms;
+      const allPlatforms = platforms.length === SOURCE_OPTIONS.length;
       const params = { page, page_size: 20, sort_order: sortOrder };
       if (tagFilter) params.tag_id = tagFilter;
       if (searchQuery) params.query = searchQuery;
       if (selectedSentiment) params.sentiment = selectedSentiment;
-      
+      if (!allPlatforms) params.source_types = platforms;
+
       if (isToday) {
-        const startOfToday = new Date();
-        startOfToday.setHours(0, 0, 0, 0);
-        const endOfToday = new Date();
-        endOfToday.setHours(23, 59, 59, 999);
+        const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
+        const endOfToday = new Date(); endOfToday.setHours(23, 59, 59, 999);
         params.date_from = startOfToday.toISOString();
         params.date_to = endOfToday.toISOString();
+      } else {
+        if (dateFrom) params.date_from = new Date(dateFrom).toISOString();
+        if (dateTo) { const dt = new Date(dateTo); dt.setHours(23, 59, 59, 999); params.date_to = dt.toISOString(); }
       }
 
       const res = await newsApi.list(params);
       setNews(res.data);
+      // Record latest ID for new-news polling
+      if (res.data.length > 0 && page === 1) {
+        lastKnownIdRef.current = Math.max(...res.data.map(n => n.id));
+      }
+      setNewCount(0);
     } catch (err) {
       console.error(err);
     }
     setLoading(false);
-  };
+  }, [page, sortOrder, tagFilter, searchQuery, selectedSentiment, selectedPlatforms, isToday, dateFrom, dateTo]);
 
-
-  const fetchCounts = async () => {
+  const fetchCounts = useCallback(async () => {
     try {
       const res = await newsApi.count(tagFilter ? { tag_id: tagFilter } : {});
       setCounts(res.data);
-    } catch (err) {
-      console.error(err);
-    }
-  };
+    } catch (err) { console.error(err); }
+  }, [tagFilter]);
 
+  // Initial load
   useEffect(() => {
     fetchNews();
     fetchCounts();
     tagsApi.list().then(r => setTags(r.data)).catch(() => {});
-  }, [tagFilter, page, sortOrder, selectedSentiment, isToday]);
+  }, [tagFilter, page, sortOrder, selectedSentiment, isToday, dateFrom, dateTo]);
 
-
-  // Sync URL tag param with dropdown
+  // Sync URL tag param
   useEffect(() => {
     const urlTag = searchParams.get('tag');
-    if (urlTag) {
-      setSelectedTagId(urlTag);
-    }
+    if (urlTag) setSelectedTagId(urlTag);
   }, [searchParams]);
 
-  const handleSearch = async (e) => {
-    e.preventDefault();
-    setPage(1);
-    fetchNews();
+  // Poll for new news every 30 seconds
+  useEffect(() => {
+    const poll = async () => {
+      try {
+        const params = { since_id: lastKnownIdRef.current };
+        if (tagFilter) params.tag_id = tagFilter;
+        const res = await newsApi.latestId(params);
+        const { latest_id, new_tags } = res.data;
+        if (lastKnownIdRef.current > 0 && latest_id > lastKnownIdRef.current) {
+          setNewCount(latest_id - lastKnownIdRef.current);
+          setNewTags(new_tags || []);
+          // Fetch the actual new item IDs to highlight them
+          const newRes = await newsApi.list({ page_size: 50, sort_order: 'desc', ...(tagFilter ? { tag_id: tagFilter } : {}) });
+          const freshIds = new Set(
+            (newRes.data || []).filter(n => n.id > lastKnownIdRef.current).map(n => n.id)
+          );
+          setNewItemIds(freshIds);
+        }
+      } catch (e) {}
+    };
+    const interval = setInterval(poll, 30000);
+    return () => clearInterval(interval);
+  }, [tagFilter]);
 
+  const handleSearch = async (e) => {
+    e?.preventDefault();
+    setPage(1);
+    setShowPlatformPopup(true);
+  };
+
+  const handlePlatformConfirm = async (platforms) => {
+    setSelectedPlatforms(platforms);
+    setShowPlatformPopup(false);
+    setPage(1);
+    await fetchNews(platforms);
     if (!scanning) {
       setScanning(true);
       try {
-        if (tagFilter && tagFilter !== "all" && tagFilter !== "") {
-          await tagsApi.scan(tagFilter);
-        } else {
-          await tagsApi.scanAll();
-        }
-      } catch (err) {
-        console.error('Scan trigger error:', err);
-      }
-      setTimeout(() => setScanning(false), 2000); // Visual feedback clear
+        if (tagFilter && tagFilter !== '') await tagsApi.scan(tagFilter);
+        else await tagsApi.scanAll();
+      } catch (e) {}
+      setTimeout(() => setScanning(false), 2000);
     }
   };
 
-  const handleSortChange = (newSort) => {
-    setSortOrder(newSort);
-    setPage(1);
+  const handleNewNewsBanner = () => {
+    setNewCount(0);
+    setNewTags([]);
+    fetchNews();
+    fetchCounts();
+    // newItemIds stays so items remain highlighted after load
   };
+
+  const handleSortChange = (s) => { setSortOrder(s); setPage(1); };
 
   const handleTagFilter = (tagId) => {
     setSelectedTagId(tagId);
     setPage(1);
-    if (tagId) {
-      setSearchParams({ tag: tagId });
-    } else {
-      setSearchParams({});
-    }
+    tagId ? setSearchParams({ tag: tagId }) : setSearchParams({});
   };
 
-  const handleSentimentFilter = (sentiment) => {
-    setSelectedSentiment(sentiment === selectedSentiment ? '' : sentiment);
+  const handleSentimentFilter = (s) => {
+    setSelectedSentiment(s === selectedSentiment ? '' : s);
     setPage(1);
   };
 
-  const handleUpdate = () => {
-    fetchNews();
-    fetchCounts();
+  const handleUpdate = () => { fetchNews(); fetchCounts(); };
+
+  const handleExportPdf = () => setShowPdfPopup(true);
+
+  const doPdfExport = async (tagIds) => {
+    setShowPdfPopup(false);
+    setExportingPdf(true);
+    try {
+      const params = {};
+      if (tagIds.length < tags.length) params.tag_ids = tagIds;
+      if (!isToday) {
+        if (dateFrom) params.date_from = new Date(dateFrom).toISOString();
+        if (dateTo) { const dt = new Date(dateTo); dt.setHours(23, 59, 59, 999); params.date_to = dt.toISOString(); }
+      } else {
+        const s = new Date(); s.setHours(0, 0, 0, 0);
+        const e = new Date(); e.setHours(23, 59, 59, 999);
+        params.date_from = s.toISOString();
+        params.date_to = e.toISOString();
+      }
+      const res = await newsApi.exportPdf(params);
+      const blob = new Blob([res.data], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const disposition = res.headers['content-disposition'] || '';
+      const match = disposition.match(/filename="([^"]+)"/);
+      const filename = match ? match[1] : `haberajani_rapor_${new Date().toISOString().slice(0,10)}.pdf`;
+      const a = document.createElement('a');
+      a.style.display = 'none'; a.href = url; a.download = filename;
+      document.body.appendChild(a); a.click();
+      setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 1000);
+    } catch (err) {
+      console.error(err);
+      alert('PDF oluşturulurken hata oluştu.');
+    }
+    setExportingPdf(false);
   };
 
-  // Sentiment bar percentages
+  // Sentiment stats
   const sentimentTotal = (counts.sentiment?.positive || 0) + (counts.sentiment?.neutral || 0) + (counts.sentiment?.negative || 0);
   const sentimentPct = {
     positive: sentimentTotal > 0 ? Math.round((counts.sentiment?.positive || 0) / sentimentTotal * 100) : 0,
-    neutral: sentimentTotal > 0 ? Math.round((counts.sentiment?.neutral || 0) / sentimentTotal * 100) : 0,
+    neutral:  sentimentTotal > 0 ? Math.round((counts.sentiment?.neutral  || 0) / sentimentTotal * 100) : 0,
     negative: sentimentTotal > 0 ? Math.round((counts.sentiment?.negative || 0) / sentimentTotal * 100) : 0,
   };
 
+  const activeTag = tags.find(t => String(t.id) === String(tagFilter));
+  const activePlatformLabels = selectedPlatforms.length === SOURCE_OPTIONS.length
+    ? null
+    : selectedPlatforms.map(v => SOURCE_OPTIONS.find(s => s.value === v)?.label).join(', ');
+
   return (
     <div className="dashboard-page">
-      <div className="page-header">
-        <h1 style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          {isToday ? <><Calendar size={28} /> Bugün Ne Oldu</> : <><Newspaper size={28} /> Haber Akışı</>}
-        </h1>
-        <div className="header-actions">
+      {/* New news banner */}
+      {newCount > 0 && (
+        <div onClick={handleNewNewsBanner} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.625rem 1rem', marginBottom: '1rem', borderRadius: 'var(--radius)', cursor: 'pointer', background: 'rgba(0,112,243,0.06)', boxShadow: 'rgba(0,112,243,0.25) 0px 0px 0px 1px' }}>
+          <BellRing size={16} style={{ color: 'var(--accent)', flexShrink: 0 }} />
+          <span style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--accent)' }}>
+            {newCount} yeni haber geldi
+            {newTags.length > 0 && (
+              <span style={{ fontWeight: 400, color: 'var(--text-secondary)' }}>
+                {' '}— <strong style={{ color: 'var(--accent)' }}>{newTags.join(', ')}</strong>
+              </span>
+            )}
+            {' '}— yüklemek için tıklayın
+          </span>
+          <X size={14} style={{ marginLeft: 'auto', color: 'var(--text-muted)', flexShrink: 0 }} onClick={e => { e.stopPropagation(); setNewCount(0); setNewTags([]); }} />
+        </div>
+      )}
 
+      <div className="page-header">
+        <h1>
+          {isToday ? <><Calendar size={24} /> Bugün Ne Oldu</> : <><Newspaper size={24} /> Haber Akışı</>}
+        </h1>
+      </div>
+
+      {/* Active tag banner */}
+      {activeTag && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.5rem 1rem', marginBottom: '1rem', borderRadius: 'var(--radius)', background: `${activeTag.color}14`, boxShadow: `${activeTag.color}44 0px 0px 0px 1px` }}>
+          <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: activeTag.color, flexShrink: 0, boxShadow: `0 0 6px ${activeTag.color}` }} />
+          <span style={{ fontWeight: 600, color: activeTag.color, fontSize: '0.875rem' }}>{activeTag.name}</span>
+          <span style={{ color: 'var(--text-muted)', fontSize: '0.8125rem' }}>etiketi için filtrelenmiş</span>
+          <button onClick={() => handleTagFilter('')} style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', alignItems: 'center' }}>
+            <X size={14} />
+          </button>
+        </div>
+      )}
+
+      {/* Stats */}
+      <div className="stats-row">
+        <div className="stat-card">
+          <span className="stat-value">{counts.total}</span>
+          <span className="stat-label">Toplam{isToday ? ' Bugün' : ''}</span>
+        </div>
+        <div className="stat-card accent">
+          <span className="stat-value">{counts.unread}</span>
+          <span className="stat-label">Okunmamış</span>
+        </div>
+        <div className="stat-card gold">
+          <span className="stat-value">{counts.favorites}</span>
+          <span className="stat-label">Favori</span>
         </div>
       </div>
 
-      {/* Stats - Only visible on main feed */}
-      {!isToday && (
-        <>
-          <div className="stats-row">
-            <div className="stat-card">
-              <span className="stat-value">{counts.total}</span>
-              <span className="stat-label">Toplam Haber</span>
-            </div>
-            <div className="stat-card accent">
-              <span className="stat-value">{counts.unread}</span>
-              <span className="stat-label">Okunmamış</span>
-            </div>
-            <div className="stat-card gold">
-              <span className="stat-value">{counts.favorites}</span>
-              <span className="stat-label">Favori</span>
-            </div>
+      {/* Sentiment */}
+      {sentimentTotal > 0 && (
+        <div className="sentiment-section">
+          <h3 className="sentiment-section-title"><Activity size={18} /> Tutum Analizi</h3>
+          <div className="sentiment-cards">
+            {[
+              { key: 'positive', label: 'Pozitif', Icon: TrendingUp },
+              { key: 'neutral',  label: 'Nötr',    Icon: Minus },
+              { key: 'negative', label: 'Negatif', Icon: TrendingDown },
+            ].map(({ key, label, Icon }) => (
+              <div key={key} className={`sentiment-stat-card ${key} ${selectedSentiment === key ? 'selected' : ''}`} onClick={() => handleSentimentFilter(key)}>
+                <span className="sentiment-stat-emoji"><Icon size={24} /></span>
+                <span className="sentiment-stat-value">{counts.sentiment?.[key] || 0}</span>
+                <span className="sentiment-stat-label">{label}</span>
+                <span className="sentiment-stat-pct">{sentimentPct[key]}%</span>
+              </div>
+            ))}
           </div>
-
-          {/* Sentiment Distribution */}
-          {sentimentTotal > 0 && (
-            <div className="sentiment-section">
-              <h3 className="sentiment-section-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <Activity size={20} /> Tutum Analizi Dağılımı
-              </h3>
-              <div className="sentiment-cards">
-                <div
-                  className={`sentiment-stat-card positive ${selectedSentiment === 'positive' ? 'selected' : ''}`}
-                  onClick={() => handleSentimentFilter('positive')}
-                >
-                  <span className="sentiment-stat-emoji"><TrendingUp size={28} /></span>
-                  <span className="sentiment-stat-value">{counts.sentiment?.positive || 0}</span>
-                  <span className="sentiment-stat-label">Pozitif</span>
-                  <span className="sentiment-stat-pct">{sentimentPct.positive}%</span>
-                </div>
-                <div
-                  className={`sentiment-stat-card neutral ${selectedSentiment === 'neutral' ? 'selected' : ''}`}
-                  onClick={() => handleSentimentFilter('neutral')}
-                >
-                  <span className="sentiment-stat-emoji"><Minus size={28} /></span>
-                  <span className="sentiment-stat-value">{counts.sentiment?.neutral || 0}</span>
-                  <span className="sentiment-stat-label">Nötr</span>
-                  <span className="sentiment-stat-pct">{sentimentPct.neutral}%</span>
-                </div>
-                <div
-                  className={`sentiment-stat-card negative ${selectedSentiment === 'negative' ? 'selected' : ''}`}
-                  onClick={() => handleSentimentFilter('negative')}
-                >
-                  <span className="sentiment-stat-emoji"><TrendingDown size={28} /></span>
-                  <span className="sentiment-stat-value">{counts.sentiment?.negative || 0}</span>
-                  <span className="sentiment-stat-label">Negatif</span>
-                  <span className="sentiment-stat-pct">{sentimentPct.negative}%</span>
-                </div>
-              </div>
-
-              {/* Sentiment Bar */}
-              <div className="sentiment-bar">
-                {sentimentPct.positive > 0 && (
-                  <div className="sentiment-bar-segment positive" style={{ width: `${sentimentPct.positive}%` }}>
-                    {sentimentPct.positive > 8 && `${sentimentPct.positive}%`}
-                  </div>
-                )}
-                {sentimentPct.neutral > 0 && (
-                  <div className="sentiment-bar-segment neutral" style={{ width: `${sentimentPct.neutral}%` }}>
-                    {sentimentPct.neutral > 8 && `${sentimentPct.neutral}%`}
-                  </div>
-                )}
-                {sentimentPct.negative > 0 && (
-                  <div className="sentiment-bar-segment negative" style={{ width: `${sentimentPct.negative}%` }}>
-                    {sentimentPct.negative > 8 && `${sentimentPct.negative}%`}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-        </>
+          <div className="sentiment-bar">
+            {sentimentPct.positive > 0 && <div className="sentiment-bar-segment positive" style={{ width: `${sentimentPct.positive}%` }} />}
+            {sentimentPct.neutral  > 0 && <div className="sentiment-bar-segment neutral"  style={{ width: `${sentimentPct.neutral}%`  }} />}
+            {sentimentPct.negative > 0 && <div className="sentiment-bar-segment negative" style={{ width: `${sentimentPct.negative}%` }} />}
+          </div>
+        </div>
       )}
 
       {/* Search */}
@@ -220,85 +390,109 @@ export default function DashboardPage() {
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
-        <button type="submit" className="btn btn-primary" disabled={scanning}>
-          {scanning ? <RefreshCw size={16} className="spin" /> : '🔍'} 
-          {scanning ? ' Aranıyor...' : ' Ara'}
+        <button type="submit" className="btn btn-primary" disabled={scanning} style={{ gap: '0.375rem' }}>
+          {scanning ? <RefreshCw size={15} className="spin" /> : <Search size={15} />}
+          {scanning ? 'Aranıyor...' : 'Ara'}
+          <ChevronDown size={13} style={{ opacity: 0.7 }} />
         </button>
       </form>
 
+      {/* Active platform filter indicator */}
+      {activePlatformLabels && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem', padding: '0.375rem 0.75rem', borderRadius: 'var(--radius-pill)', boxShadow: 'var(--ring)', background: 'var(--bg-card)', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+          <Filter size={12} />
+          <span>Platform: <strong style={{ color: 'var(--text-primary)' }}>{activePlatformLabels}</strong></span>
+          <button style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex' }} onClick={() => { setSelectedPlatforms(SOURCE_OPTIONS.map(s => s.value)); fetchNews(SOURCE_OPTIONS.map(s => s.value)); }}><X size={12} /></button>
+        </div>
+      )}
+
       {/* Filters */}
       <div className="filters-bar">
-        <div className="filter-group">
-          <label className="filter-label">🔽 Sıralama</label>
-          <div className="filter-chips">
-            <button
-              className={`filter-chip ${sortOrder === 'desc' ? 'active' : ''}`}
-              onClick={() => handleSortChange('desc')}
-            >
-              Yeniden Eskiye
-            </button>
-            <button
-              className={`filter-chip ${sortOrder === 'asc' ? 'active' : ''}`}
-              onClick={() => handleSortChange('asc')}
-            >
-              Eskiden Yeniye
-            </button>
+        <div className="filters-bar-inner">
+          {newItemIds.size > 0 && (
+            <div className="filter-group">
+              <button
+                className={`filter-chip ${showNewOnly ? 'active' : ''}`}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}
+                onClick={() => setShowNewOnly(v => !v)}
+              >
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: showNewOnly ? 'white' : 'var(--accent)', flexShrink: 0 }} />
+                Yeni ({newItemIds.size})
+              </button>
+            </div>
+          )}
+          {newItemIds.size > 0 && <div className="filter-divider" />}
+          <div className="filter-group">
+            <span className="filter-label"><ArrowUpDown size={12} /> Sıralama</span>
+            <div className="filter-chips">
+              <button className={`filter-chip ${sortOrder === 'desc' ? 'active' : ''}`} onClick={() => handleSortChange('desc')}>Yeniden Eskiye</button>
+              <button className={`filter-chip ${sortOrder === 'asc'  ? 'active' : ''}`} onClick={() => handleSortChange('asc')}>Eskiden Yeniye</button>
+            </div>
           </div>
+
+          <div className="filter-divider" />
+
+          <div className="filter-group">
+            <span className="filter-label"><Tag size={12} /> Etiket</span>
+            <select className="filter-select" value={selectedTagId} onChange={(e) => handleTagFilter(e.target.value)}>
+              <option value="">Tüm Etiketler</option>
+              {tags.map(tag => <option key={tag.id} value={tag.id}>{tag.name}</option>)}
+            </select>
+          </div>
+
+          <div className="filter-divider" />
+
+          <div className="filter-group">
+            <span className="filter-label"><BarChart2 size={12} /> Tutum</span>
+            <select className="filter-select" value={selectedSentiment} onChange={(e) => handleSentimentFilter(e.target.value)}>
+              <option value="">Tümü</option>
+              <option value="positive">Pozitif</option>
+              <option value="neutral">Nötr</option>
+              <option value="negative">Negatif</option>
+            </select>
+          </div>
+
+          {!isToday && (
+            <>
+              <div className="filter-divider" />
+              <div className="filter-group">
+                <span className="filter-label"><Calendar size={12} /> Tarih</span>
+                <div style={{ display: 'flex', gap: '0.375rem', alignItems: 'center' }}>
+                  <input type="date" className="filter-select" style={{ width: 130 }} value={dateFrom} onChange={(e) => { setDateFrom(e.target.value); setPage(1); }} />
+                  <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>—</span>
+                  <input type="date" className="filter-select" style={{ width: 130 }} value={dateTo} onChange={(e) => { setDateTo(e.target.value); setPage(1); }} />
+                </div>
+              </div>
+            </>
+          )}
         </div>
 
-        <div className="filter-group">
-          <label className="filter-label">🏷️ Etiket</label>
-          <select
-            className="filter-select"
-            value={selectedTagId}
-            onChange={(e) => handleTagFilter(e.target.value)}
-          >
-            <option value="">Tüm Etiketler</option>
-            {tags.map(tag => (
-              <option key={tag.id} value={tag.id}>
-                {tag.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="filter-group">
-          <label className="filter-label">🎯 Tutum</label>
-          <select
-            className="filter-select"
-            value={selectedSentiment}
-            onChange={(e) => handleSentimentFilter(e.target.value)}
-          >
-            <option value="">Tüm Tutumlar</option>
-            <option value="positive">↗️ Pozitif</option>
-            <option value="neutral">➡️ Nötr</option>
-            <option value="negative">↘️ Negatif</option>
-          </select>
-        </div>
-
-        {(selectedTagId || selectedSentiment) && (
-          <button className="btn btn-sm btn-outline filter-clear" onClick={() => { handleTagFilter(''); setSelectedSentiment(''); }}>
-            ✕ Filtreleri Temizle
+        <div className="filters-bar-actions">
+          {(selectedTagId || selectedSentiment || dateFrom || dateTo) && (
+            <button className="btn btn-sm btn-outline" style={{ gap: '0.375rem' }} onClick={() => { handleTagFilter(''); setSelectedSentiment(''); setDateFrom(''); setDateTo(''); }}>
+              <X size={12} /> Temizle
+            </button>
+          )}
+          <button className="btn btn-outline" style={{ gap: '0.375rem', whiteSpace: 'nowrap' }} onClick={handleExportPdf} disabled={exportingPdf}>
+            {exportingPdf ? <RefreshCw size={14} className="spin" /> : <FileDown size={14} />}
+            PDF
           </button>
-        )}
+        </div>
       </div>
 
       {/* News list */}
       <div className="news-list">
         {loading ? (
-          <div className="loading-state">
-            <div className="spinner large"></div>
-            <p>Haberler yükleniyor...</p>
-          </div>
+          <div className="loading-state"><div className="spinner large" /></div>
         ) : news.length === 0 ? (
           <div className="empty-state">
-            <span className="empty-icon">📭</span>
+            <span className="empty-icon"><Newspaper size={48} /></span>
             <h3>Henüz haber yok</h3>
-            <p>Etiket ekleyerek haber taramaya başlayın</p>
+            <p>{isToday ? 'Bugün için haber bulunamadı' : 'Etiket ekleyerek haber taramaya başlayın'}</p>
           </div>
         ) : (
-          news.map(item => (
-            <NewsCard key={item.id} item={item} onUpdate={() => { fetchNews(); fetchCounts(); }} />
+          (showNewOnly ? news.filter(n => newItemIds.has(n.id)) : news).map(item => (
+            <NewsCard key={item.id} item={item} onUpdate={handleUpdate} isNew={newItemIds.has(item.id)} />
           ))
         )}
       </div>
@@ -306,14 +500,26 @@ export default function DashboardPage() {
       {/* Pagination */}
       {news.length > 0 && (
         <div className="pagination">
-          <button className="btn btn-outline" disabled={page === 1} onClick={() => setPage(p => p - 1)}>
-            ← Önceki
-          </button>
+          <button className="btn btn-outline" disabled={page === 1} onClick={() => setPage(p => p - 1)}>← Önceki</button>
           <span className="page-info">Sayfa {page}</span>
-          <button className="btn btn-outline" disabled={news.length < 20} onClick={() => setPage(p => p + 1)}>
-            Sonraki →
-          </button>
+          <button className="btn btn-outline" disabled={news.length < 20} onClick={() => setPage(p => p + 1)}>Sonraki →</button>
         </div>
+      )}
+
+      {/* Popups */}
+      {showPlatformPopup && (
+        <PlatformPopup
+          selected={selectedPlatforms}
+          onConfirm={handlePlatformConfirm}
+          onClose={() => setShowPlatformPopup(false)}
+        />
+      )}
+      {showPdfPopup && tags.length > 0 && (
+        <PdfPopup
+          tags={tags}
+          onConfirm={doPdfExport}
+          onClose={() => setShowPdfPopup(false)}
+        />
       )}
     </div>
   );

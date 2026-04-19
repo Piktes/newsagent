@@ -92,4 +92,4 @@ def seed_super_admin(db: Session):
     )
     db.add(admin)
     db.commit()
-    print("✅ Super Admin oluşturuldu!")
+    print("[OK] Super Admin olusturuldu!")

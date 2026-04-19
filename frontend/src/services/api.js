@@ -66,13 +66,31 @@ export const sourcesApi = {
 
 // ─── News ─────────────────────────────────────────────
 export const newsApi = {
-  list: (params) => api.get('/news/', { params }),
+  list: (params) => {
+    // source_types is an array — serialize as repeated query params
+    const { source_types, ...rest } = params || {};
+    const searchParams = new URLSearchParams();
+    Object.entries(rest).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') searchParams.append(k, v); });
+    if (source_types?.length) source_types.forEach(t => searchParams.append('source_types', t));
+    return api.get('/news/?' + searchParams.toString());
+  },
+  listHidden: (params) => api.get('/news/', { params: { ...params, show_hidden: true, page_size: 100 } }),
   get: (id) => api.get(`/news/${id}`),
   count: (params) => api.get('/news/count', { params }),
+  latestId: (params) => api.get('/news/latest-id', { params }),
   toggleRead: (id) => api.put(`/news/${id}/read`),
   toggleFavorite: (id) => api.put(`/news/${id}/favorite`),
+  toggleHide: (id) => api.put(`/news/${id}/hide`),
   updateNote: (id, note) => api.put(`/news/${id}/note`, { note }),
   exportCsv: (tagId) => api.get('/news/export/csv', { params: { tag_id: tagId }, responseType: 'blob' }),
+  exportPdf: (params) => {
+    // tag_ids is an array — serialize as repeated query params
+    const { tag_ids, ...rest } = params || {};
+    const searchParams = new URLSearchParams();
+    Object.entries(rest).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') searchParams.append(k, v); });
+    if (tag_ids?.length) tag_ids.forEach(id => searchParams.append('tag_ids', id));
+    return api.get('/news/export/pdf?' + searchParams.toString(), { responseType: 'blob' });
+  },
 };
 
 // ─── Notifications ────────────────────────────────────
@@ -80,6 +98,18 @@ export const notificationsApi = {
   getPrefs: () => api.get('/notifications/preferences'),
   savePref: (data) => api.post('/notifications/preferences', data),
   deletePref: (id) => api.delete(`/notifications/preferences/${id}`),
+};
+
+// ─── Favorite Lists ───────────────────────────────────────
+export const listsApi = {
+  list: () => api.get('/lists/'),
+  create: (data) => api.post('/lists/', data),
+  rename: (id, data) => api.put(`/lists/${id}`, data),
+  delete: (id) => api.delete(`/lists/${id}`),
+  getItems: (id, params) => api.get(`/lists/${id}/items`, { params }),
+  addItem: (listId, newsId) => api.post(`/lists/${listId}/items/${newsId}`),
+  removeItem: (listId, newsId) => api.delete(`/lists/${listId}/items/${newsId}`),
+  getListsForNews: (newsId) => api.get(`/lists/for-news/${newsId}`),
 };
 
 // ─── Admin ────────────────────────────────────────────

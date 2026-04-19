@@ -124,6 +124,7 @@ class NewsItemResponse(BaseModel):
     source_url: Optional[str] = None
     sentiment: Optional[str] = None
     sentiment_score: Optional[float] = None
+    is_hidden: bool = False
     tag_id: int
     tag_name: Optional[str] = None
     tag_color: Optional[str] = None
@@ -152,7 +153,7 @@ class NewsSearchRequest(BaseModel):
 
 class NotificationPrefCreate(BaseModel):
     tag_id: int
-    method: NotificationMethod = NotificationMethod.DESKTOP
+    method: NotificationMethod = NotificationMethod.BROWSER
     enabled: bool = True
 
 
@@ -211,6 +212,26 @@ class ScanLogResponse(BaseModel):
     items_found: int
     duration_seconds: Optional[float]
     scanned_at: Optional[datetime]
+
+    class Config:
+        from_attributes = True
+
+
+# ─── Favorite Lists ──────────────────────────────────────
+
+class FavoriteListCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+
+
+class FavoriteListRename(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+
+
+class FavoriteListResponse(BaseModel):
+    id: int
+    name: str
+    item_count: int = 0
+    created_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True

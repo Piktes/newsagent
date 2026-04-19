@@ -3,6 +3,8 @@ Haberajani - Scheduler
 APScheduler-based news scanning with retry, duplicate detection, and logging.
 """
 import hashlib
+import html as _html
+import re
 import time
 from datetime import datetime, timezone
 from typing import Optional
@@ -55,6 +57,16 @@ def _get_language_code(lang: Language) -> str:
     elif lang == Language.GLOBAL:
         return "en"
     return "tr"  # default
+
+
+def _clean_for_sentiment(text: str) -> str:
+    """Strip HTML tags and decode entities before passing text to the BERT model."""
+    if not text:
+        return ""
+    text = re.sub(r'<[^>]+>', ' ', text)
+    text = _html.unescape(text)
+    text = text.replace('\xa0', ' ')
+    return ' '.join(text.split())
 
 
 def normalize_turkish(text: str) -> str:
@@ -189,8 +201,8 @@ def _scan_with_engine(db: Session, engine, tag: Tag, user_id: int, source: Optio
                         }
                         s_type = type_map.get(engine_name, SourceType.RSS)
 
-                    # Sentiment analysis on summary or title
-                    sentiment_text = r.summary or r.title or ""
+                    # Sentiment analysis on summary or title (strip HTML first)
+                    sentiment_text = _clean_for_sentiment(r.summary or r.title or "")
                     s_label, s_score = analyze_sentiment(sentiment_text)
 
                     news_item = NewsItem(
@@ -248,7 +260,16 @@ def _scan_with_engine(db: Session, engine, tag: Tag, user_id: int, source: Optio
     db.commit()
 
     if items_found > 0:
-        print(f"[Scheduler] ✅ {tag.name}: {items_found} yeni haber bulundu")
+        print(f"[Scheduler] [OK] {tag.name}: {items_found} yeni haber bulundu")
+        try:
+            import notification_bus
+            notification_bus.notify_user_sync(user_id, {
+                "type": "new_news",
+                "tag": tag.name,
+                "count": items_found,
+            })
+        except Exception:
+            pass
 
 
 def scan_all_users():
@@ -276,11 +297,11 @@ def start_scheduler():
     )
 
     scheduler.start()
-    print("📡 Scheduler başlatıldı (saatlik tarama aktif)")
+    print("[*] Scheduler baslatildi (saatlik tarama aktif)")
 
 
 def stop_scheduler():
     """Stop the scheduler gracefully."""
     if scheduler.running:
         scheduler.shutdown(wait=False)
-        print("📡 Scheduler durduruldu")
+        print("[*] Scheduler durduruldu")

@@ -33,5 +33,19 @@ def get_db():
 
 
 def init_db():
-    """Create all tables."""
+    """Create all tables and run safe migrations."""
+    from sqlalchemy import text
     Base.metadata.create_all(bind=engine)
+    with engine.connect() as conn:
+        # Add is_hidden column if missing
+        try:
+            conn.execute(text("ALTER TABLE news_items ADD COLUMN is_hidden BOOLEAN DEFAULT 0"))
+            conn.commit()
+        except Exception:
+            pass
+        # Migrate DESKTOP → BROWSER in notification_prefs
+        try:
+            conn.execute(text("UPDATE notification_prefs SET method='browser' WHERE method='desktop'"))
+            conn.commit()
+        except Exception:
+            pass

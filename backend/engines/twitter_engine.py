@@ -3,6 +3,7 @@ Haberajani - Twitter/X Engine
 Search Twitter/X posts using duckduckgo_search (no API key needed)
 or Tweepy (with API key).
 """
+from datetime import datetime, timezone
 from typing import List, Optional
 
 from engines.base import BaseNewsEngine, NewsResult
@@ -53,7 +54,7 @@ class TwitterEngine(BaseNewsEngine):
                         url=url,
                         summary=body[:300] if body else None,
                         source_name=f"𝕏 {username}",
-                        published_at=None,
+                        published_at=datetime.now(timezone.utc).isoformat(),
                         source_url=url
                     ))
         except Exception as e:

@@ -8,6 +8,8 @@ import FavoritesPage from './pages/FavoritesPage';
 import TagsPage from './pages/TagsPage';
 import SourcesPage from './pages/SourcesPage';
 import NotificationsPage from './pages/NotificationsPage';
+import HiddenNewsPage from './pages/HiddenNewsPage';
+import ListDetailPage from './pages/ListDetailPage';
 import AdminPage from './pages/AdminPage';
 import UsersPage from './pages/UsersPage';
 import ScanLogsPage from './pages/ScanLogsPage';
@@ -39,6 +41,8 @@ function AppLayout({ isDarkTheme, toggleTheme }) {
           <Route path="/tags" element={<TagsPage />} />
           <Route path="/sources" element={<SourcesPage />} />
           <Route path="/notifications" element={<NotificationsPage />} />
+          <Route path="/hidden" element={<HiddenNewsPage />} />
+          <Route path="/lists/:id" element={<ListDetailPage />} />
           <Route path="/admin" element={<ProtectedRoute adminOnly><AdminPage /></ProtectedRoute>} />
           <Route path="/admin/users" element={<ProtectedRoute adminOnly><UsersPage /></ProtectedRoute>} />
           <Route path="/admin/logs" element={<ProtectedRoute adminOnly><ScanLogsPage /></ProtectedRoute>} />
