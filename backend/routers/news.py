@@ -151,15 +151,27 @@ def list_news(
 @router.get("/count")
 def news_count(
     tag_id: Optional[int] = None,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+    source_types: Optional[List[SourceType]] = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     from datetime import date, time as dtime
     from sqlalchemy import func
 
-    base = db.query(NewsItem).filter(NewsItem.user_id == current_user.id)
+    base = db.query(NewsItem).filter(
+        NewsItem.user_id == current_user.id,
+        NewsItem.is_hidden == False
+    )
     if tag_id:
         base = base.filter(NewsItem.tag_id == tag_id)
+    if date_from:
+        base = base.filter(NewsItem.fetched_at >= datetime.fromisoformat(date_from.replace("Z", "+00:00")).replace(tzinfo=None))
+    if date_to:
+        base = base.filter(NewsItem.fetched_at <= datetime.fromisoformat(date_to.replace("Z", "+00:00")).replace(tzinfo=None))
+    if source_types:
+        base = base.filter(NewsItem.source_type.in_(source_types))
 
     total = base.count()
     unread = base.filter(NewsItem.is_read == False).count()

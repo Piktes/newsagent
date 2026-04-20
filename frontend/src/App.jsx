@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { AuthProvider, useAuth } from './hooks/useAuth';
+import { RefreshCw, X } from 'lucide-react';
 import Sidebar from './components/Sidebar';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
@@ -13,6 +14,7 @@ import ListDetailPage from './pages/ListDetailPage';
 import AdminPage from './pages/AdminPage';
 import UsersPage from './pages/UsersPage';
 import ScanLogsPage from './pages/ScanLogsPage';
+import QuotaPage from './pages/QuotaPage';
 
 function ProtectedRoute({ children, adminOnly = false }) {
   const { user, loading, isAdmin } = useAuth();
@@ -24,15 +26,70 @@ function ProtectedRoute({ children, adminOnly = false }) {
 
 function AppLayout({ isDarkTheme, toggleTheme }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [scanToast, setScanToast] = useState(null); // { tags: [], dismissed: bool }
+  const wsRef = useRef(null);
+  const { user } = useAuth();
+  const WS_BASE = (import.meta.env.VITE_API_BASE || 'http://localhost:8000/api')
+    .replace(/^http/, 'ws').replace(/\/api$/, '');
+
+  useEffect(() => {
+    if (!user?.id) return;
+    const connect = () => {
+      const ws = new WebSocket(`${WS_BASE}/api/notifications/ws/${user.id}`);
+      wsRef.current = ws;
+      ws.onmessage = (e) => {
+        try {
+          const msg = JSON.parse(e.data);
+          if (msg.type === 'scan_started') {
+            setScanToast({ tags: msg.tags || [], total: msg.total || 0, completed: 0, finished: false });
+          } else if (msg.type === 'scan_progress') {
+            setScanToast(prev => prev ? { ...prev, completed: msg.completed, total: msg.total, currentTag: msg.tag } : null);
+          } else if (msg.type === 'scan_finished') {
+            setScanToast(prev => prev ? { ...prev, finished: true, completed: prev.total } : null);
+            setTimeout(() => setScanToast(null), 3000);
+          }
+        } catch {}
+      };
+      ws.onclose = () => setTimeout(connect, 5000);
+    };
+    connect();
+    return () => wsRef.current?.close();
+  }, [user?.id]);
 
   return (
     <div className={`app-layout ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
-      <Sidebar 
-        collapsed={sidebarCollapsed} 
-        onToggle={() => setSidebarCollapsed(!sidebarCollapsed)} 
+      <Sidebar
+        collapsed={sidebarCollapsed}
+        onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
         isDarkTheme={isDarkTheme}
         toggleTheme={toggleTheme}
       />
+      {scanToast && (
+        <div className={`scan-toast ${scanToast.finished ? 'finished' : 'running'}`}>
+          <div className="scan-toast-header">
+            <RefreshCw size={14} className={scanToast.finished ? '' : 'spin'} />
+            <div className="scan-toast-text">
+              {scanToast.finished
+                ? 'Haber taraması tamamlandı.'
+                : scanToast.currentTag
+                  ? `"${scanToast.currentTag}" taranıyor…`
+                  : 'Haber taraması başlıyor…'}
+            </div>
+            {scanToast.total > 0 && (
+              <span className="scan-toast-counter">{scanToast.completed}/{scanToast.total}</span>
+            )}
+            <button className="scan-toast-close" onClick={() => setScanToast(null)}><X size={13} /></button>
+          </div>
+          {scanToast.total > 0 && (
+            <div className="scan-toast-progress-track">
+              <div
+                className="scan-toast-progress-bar"
+                style={{ width: `${scanToast.total > 0 ? Math.round((scanToast.completed / scanToast.total) * 100) : 0}%` }}
+              />
+            </div>
+          )}
+        </div>
+      )}
       <main className="main-content">
         <Routes>
           <Route path="/" element={<DashboardPage />} />
@@ -46,6 +103,7 @@ function AppLayout({ isDarkTheme, toggleTheme }) {
           <Route path="/admin" element={<ProtectedRoute adminOnly><AdminPage /></ProtectedRoute>} />
           <Route path="/admin/users" element={<ProtectedRoute adminOnly><UsersPage /></ProtectedRoute>} />
           <Route path="/admin/logs" element={<ProtectedRoute adminOnly><ScanLogsPage /></ProtectedRoute>} />
+          <Route path="/admin/quota" element={<ProtectedRoute adminOnly><QuotaPage /></ProtectedRoute>} />
         </Routes>
       </main>
     </div>

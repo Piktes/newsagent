@@ -1,7 +1,15 @@
 import { useState, useEffect, useCallback } from 'react';
-import { EyeOff, Newspaper, ArrowUpDown, Tag, BarChart2, Calendar, X, TrendingUp, Minus, TrendingDown, Activity, RefreshCw } from 'lucide-react';
+import { EyeOff, Newspaper, ArrowUpDown, Tag, BarChart2, Calendar, X, TrendingUp, Minus, TrendingDown, Activity, RefreshCw, Radio } from 'lucide-react';
 import { newsApi, tagsApi } from '../services/api';
 import NewsCard from '../components/NewsCard';
+
+const SOURCE_OPTIONS = [
+  { value: 'rss', label: 'RSS / Haber' },
+  { value: 'web', label: 'Web' },
+  { value: 'youtube', label: 'YouTube' },
+  { value: 'twitter', label: 'Twitter / X' },
+  { value: 'newsapi', label: 'NewsAPI.ai' },
+];
 
 export default function HiddenNewsPage() {
   const [news, setNews] = useState([]);
@@ -11,6 +19,7 @@ export default function HiddenNewsPage() {
   const [sortOrder, setSortOrder] = useState('desc');
   const [selectedTagId, setSelectedTagId] = useState('');
   const [selectedSentiment, setSelectedSentiment] = useState('');
+  const [selectedSource, setSelectedSource] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [page, setPage] = useState(1);
@@ -21,13 +30,14 @@ export default function HiddenNewsPage() {
       const params = { show_hidden: true, page, page_size: 20, sort_order: sortOrder };
       if (selectedTagId) params.tag_id = selectedTagId;
       if (selectedSentiment) params.sentiment = selectedSentiment;
+      if (selectedSource) params.source_types = [selectedSource];
       if (dateFrom) params.date_from = new Date(dateFrom).toISOString();
       if (dateTo) { const dt = new Date(dateTo); dt.setHours(23,59,59,999); params.date_to = dt.toISOString(); }
       const res = await newsApi.list(params);
       setNews(res.data);
     } catch (err) { console.error(err); }
     setLoading(false);
-  }, [page, sortOrder, selectedTagId, selectedSentiment, dateFrom, dateTo]);
+  }, [page, sortOrder, selectedTagId, selectedSentiment, selectedSource, dateFrom, dateTo]);
 
   const fetchCounts = useCallback(async () => {
     try {
@@ -140,6 +150,14 @@ export default function HiddenNewsPage() {
           </div>
           <div className="filter-divider" />
           <div className="filter-group">
+            <span className="filter-label"><Radio size={12} /> Kaynak</span>
+            <select className="filter-select" value={selectedSource} onChange={e => { setSelectedSource(e.target.value); setPage(1); }}>
+              <option value="">Tümü</option>
+              {SOURCE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+          </div>
+          <div className="filter-divider" />
+          <div className="filter-group">
             <span className="filter-label"><Calendar size={12} /> Tarih</span>
             <div style={{ display: 'flex', gap: '0.375rem', alignItems: 'center' }}>
               <input type="date" className="filter-select" style={{ width: 130 }} value={dateFrom} onChange={e => { setDateFrom(e.target.value); setPage(1); }} />
@@ -148,9 +166,9 @@ export default function HiddenNewsPage() {
             </div>
           </div>
         </div>
-        {(selectedTagId || selectedSentiment || dateFrom || dateTo) && (
+        {(selectedTagId || selectedSentiment || selectedSource || dateFrom || dateTo) && (
           <div className="filters-bar-actions">
-            <button className="btn btn-sm btn-outline" style={{ gap: '0.375rem' }} onClick={() => { setSelectedTagId(''); setSelectedSentiment(''); setDateFrom(''); setDateTo(''); setPage(1); }}>
+            <button className="btn btn-sm btn-outline" style={{ gap: '0.375rem' }} onClick={() => { setSelectedTagId(''); setSelectedSentiment(''); setSelectedSource(''); setDateFrom(''); setDateTo(''); setPage(1); }}>
               <X size={12} /> Temizle
             </button>
           </div>

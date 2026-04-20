@@ -31,14 +31,15 @@ scheduler = BackgroundScheduler()
 MAX_RETRIES = 3
 
 
-def _get_engine(source: NewsSource):
+def _get_engine(source: NewsSource, user_id: int = None, username: str = None):
     """Get the appropriate engine for a news source."""
+    if source.type == SourceType.NEWSAPI:
+        return NewsApiEngine(api_key=source.api_key, user_id=user_id, username=username)
     engine_map = {
         SourceType.RSS: RssEngine,
         SourceType.TWITTER: TwitterEngine,
         SourceType.YOUTUBE: YoutubeEngine,
         SourceType.WEB: WebEngine,
-        SourceType.NEWSAPI: NewsApiEngine,
     }
     engine_class = engine_map.get(source.type)
     if engine_class:
@@ -87,6 +88,10 @@ def scan_for_user_tag(user_id: int, tag_id: int, source_id: Optional[int] = None
             return
 
         # Get user's active sources
+        from models import User
+        user = db.query(User).filter(User.id == user_id).first()
+        username = user.username if user else None
+
         if source_id:
             sources = db.query(NewsSource).filter(
                 NewsSource.id == source_id,
@@ -99,24 +104,22 @@ def scan_for_user_tag(user_id: int, tag_id: int, source_id: Optional[int] = None
                 NewsSource.is_active == True
             ).all()
 
-        # If no custom sources, use all free engines (no API key needed)
+        # Always run NewsAPI.ai (EventRegistry) as system engine
+        from config import ER_API_KEY
+        if ER_API_KEY:
+            er_engine = NewsApiEngine(api_key=ER_API_KEY, user_id=user_id, username=username)
+            _scan_with_engine(db, er_engine, tag, user_id, None)
+
+        # If no custom sources, also use free engines
         if not sources:
-            # Google News RSS (primary)
             _scan_with_engine(db, RssEngine(), tag, user_id, None)
-            # YouTube (no API key needed)
             _scan_with_engine(db, YoutubeEngine(), tag, user_id, None)
-            # Web News via DuckDuckGo (no API key needed)
             _scan_with_engine(db, WebEngine(), tag, user_id, None)
-            # Twitter/X via DuckDuckGo (no API key needed)
             _scan_with_engine(db, TwitterEngine(), tag, user_id, None)
-            # Instagram via DuckDuckGo (no API key needed)
-            _scan_with_engine(db, InstagramEngine(), tag, user_id, None)
-            # Ekşi Sözlük via DuckDuckGo (no API key needed)
-            _scan_with_engine(db, EksiSozlukEngine(), tag, user_id, None)
             return
 
         for source in sources:
-            engine = _get_engine(source)
+            engine = _get_engine(source, user_id=user_id, username=username)
             if engine:
                 _scan_with_engine(db, engine, tag, user_id, source)
 
@@ -166,9 +169,10 @@ def _scan_with_engine(db: Session, engine, tag: Tag, user_id: int, source: Optio
 
                 for r in results:
                     # Relevance check: exact phrase must appear in title or summary
-                    tag_phrase = normalize_turkish(tag.name)
-                    title_lower = normalize_turkish(r.title)
-                    summary_lower = normalize_turkish(r.summary)
+                    from engines.newsapi_engine import normalize_query as _nq
+                    tag_phrase = normalize_turkish(_nq(tag.name))
+                    title_lower = normalize_turkish(r.title or "")
+                    summary_lower = normalize_turkish(r.summary or "")
                     if tag_phrase not in title_lower and tag_phrase not in summary_lower:
                         continue
 
@@ -274,11 +278,36 @@ def _scan_with_engine(db: Session, engine, tag: Tag, user_id: int, source: Optio
 
 def scan_all_users():
     """Main scheduled job: Scan all tags for all users."""
+    import notification_bus
     db: Session = SessionLocal()
     try:
         tags = db.query(Tag).all()
+        # Group tags by user
+        from collections import defaultdict
+        user_tags: dict = defaultdict(list)
         for tag in tags:
-            scan_for_user_tag(tag.user_id, tag.id)
+            user_tags[tag.user_id].append(tag)
+
+        for user_id, user_tag_list in user_tags.items():
+            tag_names = [t.name for t in user_tag_list]
+            total = len(user_tag_list)
+            notification_bus.notify_user_sync(user_id, {
+                "type": "scan_started",
+                "tags": tag_names,
+                "total": total,
+            })
+            for i, tag in enumerate(user_tag_list):
+                scan_for_user_tag(user_id, tag.id)
+                notification_bus.notify_user_sync(user_id, {
+                    "type": "scan_progress",
+                    "completed": i + 1,
+                    "total": total,
+                    "tag": tag.name,
+                })
+            notification_bus.notify_user_sync(user_id, {
+                "type": "scan_finished",
+                "tags": tag_names,
+            })
     except Exception as e:
         print(f"[Scheduler] Toplu tarama hatası: {e}")
     finally:
@@ -287,17 +316,13 @@ def scan_all_users():
 
 def start_scheduler():
     """Start the APScheduler with configured intervals."""
-    # Hourly scan for all users
-    scheduler.add_job(scan_all_users, 'interval', hours=1, id='hourly_scan', replace_existing=True)
-
-    # Also run an initial scan 30 seconds after startup
-    scheduler.add_job(
-        scan_all_users, 'interval', seconds=30, id='initial_scan',
-        replace_existing=True, max_instances=1
-    )
-
-    scheduler.start()
-    print("[*] Scheduler baslatildi (saatlik tarama aktif)")
+    # Scheduler disabled — uncomment to re-enable hourly scanning
+    # from datetime import datetime, timedelta, timezone
+    # scheduler.add_job(scan_all_users, 'interval', hours=1, id='hourly_scan', replace_existing=True, max_instances=1)
+    # run_at = datetime.now(timezone.utc) + timedelta(seconds=30)
+    # scheduler.add_job(scan_all_users, 'date', run_date=run_at, id='initial_scan', replace_existing=True)
+    # scheduler.start()
+    print("[*] Scheduler devre disi (manuel tarama aktif)")
 
 
 def stop_scheduler():

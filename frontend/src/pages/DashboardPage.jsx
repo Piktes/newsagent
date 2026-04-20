@@ -2,11 +2,11 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams, useLocation } from 'react-router-dom';
 import {
   TrendingUp, Minus, TrendingDown, Activity, Newspaper, Calendar,
-  RefreshCw, FileDown, Search, Rss, Globe,
+  RefreshCw, FileDown, Search, Rss, Globe, Zap,
   X, Filter, Check, ChevronDown, BellRing,
   ArrowUpDown, Tag, BarChart2, SlidersHorizontal,
 } from 'lucide-react';
-import { FaYoutube, FaXTwitter, FaInstagram, FaQuoteLeft } from 'react-icons/fa6';
+import { FaYoutube, FaXTwitter } from 'react-icons/fa6';
 import { newsApi, tagsApi } from '../services/api';
 import NewsCard from '../components/NewsCard';
 
@@ -15,8 +15,7 @@ const SOURCE_OPTIONS = [
   { value: 'web',         label: 'Web',             Icon: Globe },
   { value: 'youtube',     label: 'YouTube',         Icon: FaYoutube },
   { value: 'twitter',     label: 'Twitter / X',     Icon: FaXTwitter },
-  { value: 'instagram',   label: 'Instagram',       Icon: FaInstagram },
-  { value: 'eksisozluk',  label: 'Ekşi Sözlük',     Icon: FaQuoteLeft },
+  { value: 'newsapi',     label: 'NewsAPI.ai',      Icon: Zap },
 ];
 
 /* ── Platform Seçim Popup ──────────────────────────────────────────── */
@@ -136,6 +135,8 @@ export default function DashboardPage() {
 
   const fetchNews = useCallback(async (sourcePlatforms) => {
     setLoading(true);
+    setNewItemIds(new Set());
+    setShowNewOnly(false);
     try {
       const platforms = sourcePlatforms || selectedPlatforms;
       const allPlatforms = platforms.length === SOURCE_OPTIONS.length;
@@ -157,9 +158,20 @@ export default function DashboardPage() {
 
       const res = await newsApi.list(params);
       setNews(res.data);
-      // Record latest ID for new-news polling
       if (res.data.length > 0 && page === 1) {
-        lastKnownIdRef.current = Math.max(...res.data.map(n => n.id));
+        const maxId = Math.max(...res.data.map(n => n.id));
+        lastKnownIdRef.current = maxId;
+        // Mark items with ID > last-seen ID as "new"
+        const lastSeenKey = 'haberajani_last_seen_id';
+        const lastSeenId = parseInt(localStorage.getItem(lastSeenKey) || '0', 10);
+        if (lastSeenId > 0) {
+          const freshIds = new Set(res.data.filter(n => n.id > lastSeenId).map(n => n.id));
+          if (freshIds.size > 0) setNewItemIds(freshIds);
+        }
+        // Save current max ID — updated on page unload so new items stay visible during session
+        const saveId = () => localStorage.setItem(lastSeenKey, String(maxId));
+        window.addEventListener('beforeunload', saveId, { once: true });
+        if (lastSeenId === 0) localStorage.setItem(lastSeenKey, String(maxId));
       }
       setNewCount(0);
     } catch (err) {
@@ -170,17 +182,30 @@ export default function DashboardPage() {
 
   const fetchCounts = useCallback(async () => {
     try {
-      const res = await newsApi.count(tagFilter ? { tag_id: tagFilter } : {});
+      const params = {};
+      if (tagFilter) params.tag_id = tagFilter;
+      if (isToday) {
+        const s = new Date(); s.setHours(0, 0, 0, 0);
+        const e = new Date(); e.setHours(23, 59, 59, 999);
+        params.date_from = s.toISOString();
+        params.date_to = e.toISOString();
+      } else {
+        if (dateFrom) params.date_from = new Date(dateFrom).toISOString();
+        if (dateTo) { const dt = new Date(dateTo); dt.setHours(23, 59, 59, 999); params.date_to = dt.toISOString(); }
+      }
+      const allPlatforms = selectedPlatforms.length === 0 || selectedPlatforms.length === SOURCE_OPTIONS.length;
+      if (!allPlatforms) params.source_types = selectedPlatforms;
+      const res = await newsApi.count(params);
       setCounts(res.data);
     } catch (err) { console.error(err); }
-  }, [tagFilter]);
+  }, [tagFilter, isToday, dateFrom, dateTo, selectedPlatforms]);
 
   // Initial load
   useEffect(() => {
     fetchNews();
     fetchCounts();
     tagsApi.list().then(r => setTags(r.data)).catch(() => {});
-  }, [tagFilter, page, sortOrder, selectedSentiment, isToday, dateFrom, dateTo]);
+  }, [tagFilter, page, sortOrder, selectedSentiment, isToday, dateFrom, dateTo, selectedPlatforms]);
 
   // Sync URL tag param
   useEffect(() => {
@@ -197,14 +222,16 @@ export default function DashboardPage() {
         const res = await newsApi.latestId(params);
         const { latest_id, new_tags } = res.data;
         if (lastKnownIdRef.current > 0 && latest_id > lastKnownIdRef.current) {
-          setNewCount(latest_id - lastKnownIdRef.current);
-          setNewTags(new_tags || []);
-          // Fetch the actual new item IDs to highlight them
+          // Fetch actual new items to get accurate count (ID range ≠ item count)
           const newRes = await newsApi.list({ page_size: 50, sort_order: 'desc', ...(tagFilter ? { tag_id: tagFilter } : {}) });
           const freshIds = new Set(
             (newRes.data || []).filter(n => n.id > lastKnownIdRef.current).map(n => n.id)
           );
-          setNewItemIds(freshIds);
+          if (freshIds.size > 0) {
+            setNewCount(freshIds.size);
+            setNewTags(new_tags || []);
+            setNewItemIds(freshIds);
+          }
         }
       } catch (e) {}
     };
@@ -233,12 +260,11 @@ export default function DashboardPage() {
     }
   };
 
-  const handleNewNewsBanner = () => {
+  const handleNewNewsBanner = async () => {
     setNewCount(0);
     setNewTags([]);
-    fetchNews();
+    await fetchNews();
     fetchCounts();
-    // newItemIds stays so items remain highlighted after load
   };
 
   const handleSortChange = (s) => { setSortOrder(s); setPage(1); };
@@ -412,12 +438,12 @@ export default function DashboardPage() {
           {newItemIds.size > 0 && (
             <div className="filter-group">
               <button
-                className={`filter-chip ${showNewOnly ? 'active' : ''}`}
+                className={`filter-chip new-chip ${showNewOnly ? 'active' : ''}`}
                 style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}
                 onClick={() => setShowNewOnly(v => !v)}
               >
-                <span style={{ width: 6, height: 6, borderRadius: '50%', background: showNewOnly ? 'white' : 'var(--accent)', flexShrink: 0 }} />
-                Yeni ({newItemIds.size})
+                <span className="new-chip-dot" />
+                YENİ ({newItemIds.size})
               </button>
             </div>
           )}

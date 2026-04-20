@@ -5,7 +5,16 @@ import {
   Star, NotebookPen, Clipboard, EyeOff, Eye, Save, X, Trash2,
   BookMarked, Plus, Check
 } from 'lucide-react';
-import { FaXTwitter, FaWhatsapp } from 'react-icons/fa6';
+import { FaXTwitter, FaWhatsapp, FaYoutube } from 'react-icons/fa6';
+import { Rss, Globe, Zap } from 'lucide-react';
+
+const PLATFORM_BADGE = {
+  twitter:  { label: 'Twitter/X',   icon: <FaXTwitter size={11} />,  cls: 'badge-twitter' },
+  youtube:  { label: 'YouTube',      icon: <FaYoutube size={11} />,   cls: 'badge-youtube' },
+  rss:      { label: 'RSS',          icon: <Rss size={11} />,         cls: 'badge-rss' },
+  web:      { label: 'Web',          icon: <Globe size={11} />,       cls: 'badge-web' },
+  newsapi:  { label: 'NewsAPI.ai',   icon: <Zap size={11} />,         cls: 'badge-newsapi' },
+};
 import { newsApi, listsApi } from '../services/api';
 
 const decodeHtml = (html) => {
@@ -18,7 +27,7 @@ const decodeHtml = (html) => {
   return decoded;
 };
 
-export default function NewsCard({ item, onUpdate, showRestoreButton = false }) {
+export default function NewsCard({ item, onUpdate, showRestoreButton = false, isNew = false }) {
   const [loading, setLoading] = useState(false);
   const [showNote, setShowNote] = useState(false);
   const [noteText, setNoteText] = useState(item.user_note || '');
@@ -175,7 +184,7 @@ export default function NewsCard({ item, onUpdate, showRestoreButton = false }) 
 
   return (
     <>
-    <article className={`news-card ${item.is_read ? 'read' : 'unread'}`} onClick={handleRead}>
+    <article className={`news-card ${item.is_read ? 'read' : 'unread'}${isNew ? ' new-item' : ''}`} onClick={handleRead}>
       {item.thumbnail && (
         <div className="news-thumbnail">
           <img src={item.thumbnail} alt="" loading="lazy" onError={(e) => e.target.style.display = 'none'} />
@@ -184,6 +193,36 @@ export default function NewsCard({ item, onUpdate, showRestoreButton = false }) 
 
       <div className="news-content">
         <div className="news-meta">
+          {isNew && <span className="news-badge-new">YENİ</span>}
+
+          {item.tag_name && (
+            <span className="news-tag" style={{ backgroundColor: item.tag_color + '22', color: item.tag_color, borderColor: item.tag_color }}>
+              {item.tag_name}
+            </span>
+          )}
+
+          {item.sentiment && (
+            <span className={`sentiment-badge sentiment-${item.sentiment}`} title={`Güven: %${Math.round((item.sentiment_score || 0) * 100)}`}>
+              <span className="sentiment-emoji" style={{ display: 'inline-flex', alignItems: 'center' }}>
+                {item.sentiment === 'positive' ? <TrendingUp size={14} /> : item.sentiment === 'negative' ? <TrendingDown size={14} /> : <Minus size={14} />}
+              </span>
+              <span className="sentiment-label">
+                {item.sentiment === 'positive' ? 'Pozitif' : item.sentiment === 'negative' ? 'Negatif' : 'Nötr'}
+              </span>
+              <span className="sentiment-score">
+                %{Math.round((item.sentiment_score || 0) * 100)}
+              </span>
+            </span>
+          )}
+
+          <span className="news-meta-spacer" />
+
+          {item.source_type && PLATFORM_BADGE[item.source_type] && (
+            <span className={`platform-badge ${PLATFORM_BADGE[item.source_type].cls}`}>
+              {PLATFORM_BADGE[item.source_type].icon}
+              {PLATFORM_BADGE[item.source_type].label}
+            </span>
+          )}
           {item.source_name && <span className="news-source">{item.source_name}</span>}
           <span className="news-meta-sep">·</span>
           <span className="news-time" title={formatDate(item.published_at || item.fetched_at)}>
@@ -196,26 +235,6 @@ export default function NewsCard({ item, onUpdate, showRestoreButton = false }) 
             </>
           )}
         </div>
-
-        {item.tag_name && (
-          <span className="news-tag" style={{ backgroundColor: item.tag_color + '22', color: item.tag_color, borderColor: item.tag_color }}>
-            {item.tag_name}
-          </span>
-        )}
-
-        {item.sentiment && (
-          <span className={`sentiment-badge sentiment-${item.sentiment}`} title={`Güven: %${Math.round((item.sentiment_score || 0) * 100)}`}>
-            <span className="sentiment-emoji" style={{ display: 'inline-flex', alignItems: 'center' }}>
-              {item.sentiment === 'positive' ? <TrendingUp size={14} /> : item.sentiment === 'negative' ? <TrendingDown size={14} /> : <Minus size={14} />}
-            </span>
-            <span className="sentiment-label">
-              {item.sentiment === 'positive' ? 'Pozitif' : item.sentiment === 'negative' ? 'Negatif' : 'Nötr'}
-            </span>
-            <span className="sentiment-score">
-              %{Math.round((item.sentiment_score || 0) * 100)}
-            </span>
-          </span>
-        )}
 
         <h3 className="news-title">{decodeHtml(item.title)}</h3>
         {item.summary && <p className="news-summary">{decodeHtml(item.summary)}</p>}

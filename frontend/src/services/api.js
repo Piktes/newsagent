@@ -119,6 +119,9 @@ export const adminApi = {
   updateSmtp: (data) => api.put('/admin/smtp', data),
   getScanLogs: (limit) => api.get('/admin/scan-logs', { params: { limit } }),
   clearScanLogs: () => api.delete('/admin/scan-logs'),
+  getErQuota: () => api.get('/admin/er-quota'),
+  getErLogs: (page, page_size) => api.get('/admin/er-logs', { params: { page, page_size } }),
+  clearErLogs: () => api.delete('/admin/er-logs'),
 };
 
 export default api;

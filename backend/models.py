@@ -152,6 +152,17 @@ class ApiQuota(Base):
     last_reset = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 
+class EventRegistryUsageLog(Base):
+    __tablename__ = "er_usage_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    username = Column(String(100), nullable=True)
+    action = Column(String(200), nullable=False)
+    tokens_used = Column(Integer, default=1)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+
 class ScanLog(Base):
     __tablename__ = "scan_logs"
 

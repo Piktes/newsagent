@@ -9,7 +9,8 @@ from typing import List
 
 from database import get_db
 from models import (
-    User, Tag, NewsSource, NewsItem, ScanLog, SmtpSettings, ApiQuota
+    User, Tag, NewsSource, NewsItem, ScanLog, SmtpSettings, ApiQuota,
+    EventRegistryUsageLog
 )
 from schemas import (
     DashboardStats, SmtpSettingsUpdate, SmtpSettingsResponse,
@@ -80,6 +81,72 @@ def update_smtp(
     db.commit()
     db.refresh(settings)
     return settings
+
+
+# ─── Event Registry Quota ────────────────────────────────
+
+from config import ER_API_KEY
+
+
+@router.get("/er-quota")
+def get_er_quota(
+    admin: User = Depends(require_admin)
+):
+    import requests
+    try:
+        res = requests.post(
+            "https://eventregistry.org/api/v1/usage",
+            json={"apiKey": ER_API_KEY},
+            timeout=8
+        )
+        data = res.json()
+        total = data.get("availableTokens", 0)
+        used = data.get("usedTokens", 0)
+        available = max(total - used, 0)
+        return {
+            "available_tokens": available,
+            "used_tokens": used,
+            "total_tokens": total,
+            "used_pct": round(used / total * 100, 1) if total > 0 else 0,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"EventRegistry API erişilemedi: {e}")
+
+
+@router.get("/er-logs")
+def list_er_logs(
+    page: int = 1,
+    page_size: int = 50,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_admin)
+):
+    q = db.query(EventRegistryUsageLog).order_by(desc(EventRegistryUsageLog.created_at))
+    total = q.count()
+    items = q.offset((page - 1) * page_size).limit(page_size).all()
+    return {
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "items": [
+            {
+                "id": i.id,
+                "username": i.username or "sistem",
+                "action": i.action,
+                "tokens_used": i.tokens_used,
+                "created_at": i.created_at.isoformat() if i.created_at else None,
+            }
+            for i in items
+        ]
+    }
+
+
+@router.delete("/er-logs", status_code=204)
+def clear_er_logs(
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_admin)
+):
+    db.query(EventRegistryUsageLog).delete()
+    db.commit()
 
 
 # ─── Scan Logs ────────────────────────────────────────────

@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -s http://localhost:8000/api/admin/stats -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwicm9sZSI6InN1cGVyX2FkbWluIiwiZXhwIjoxNzc2NzkxNzYzfQ.dw3_gF4xMYxDTxf6lgIszSRS_xaPy5y51KpK8JWw-c4')",
+      "Bash(python -c \"import sys,json; routes=[r['summary'] if 'summary' in r else p for p,v in json.load\\(sys.stdin\\)['paths'].items\\(\\) for m,r in v.items\\(\\) if 'admin' in p]; print\\('\\\\n'.join\\(routes\\)\\)\")",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); arts=d.get\\('articles',{}\\).get\\('results',[]\\); [print\\(a['title'], '|', a.get\\('source',{}\\).get\\('title','?'\\)\\) for a in arts]\")"
+    ]
+  }
+}

@@ -5,8 +5,8 @@ import { tagsApi, newsApi } from '../services/api';
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000/api';
 const WS_BASE = API_BASE.replace(/^http/, 'ws').replace('/api', '');
 import {
-  Newspaper, Calendar, Star, Tags, Radio, Bell, EyeOff,
-  BarChart, Users, FileText, Zap, LogOut, Sun, Moon
+  Newspaper, Calendar, Star, Tags, Bell, EyeOff,
+  BarChart, Users, FileText, Zap, LogOut, Sun, Moon, Gauge
 } from 'lucide-react';
 
 const NAV_ITEMS = [
@@ -15,7 +15,6 @@ const NAV_ITEMS = [
   { path: '/favorites', icon: <Star size={18} />, label: 'Favoriler', key: 'favs' },
   { path: '/hidden', icon: <EyeOff size={18} />, label: 'Akıştan Çıkarılanlar', key: 'hidden' },
   { path: '/tags', icon: <Tags size={18} />, label: 'Etiketler', key: 'tags' },
-  { path: '/sources', icon: <Radio size={18} />, label: 'Kaynaklar', key: 'sources' },
   { path: '/notifications', icon: <Bell size={18} />, label: 'Bildirimler', key: 'notifs' },
 ];
 
@@ -23,6 +22,7 @@ const ADMIN_ITEMS = [
   { path: '/admin', icon: <BarChart size={18} />, label: 'Yönetim Paneli' },
   { path: '/admin/users', icon: <Users size={18} />, label: 'Kullanıcılar' },
   { path: '/admin/logs', icon: <FileText size={18} />, label: 'Tarama Logları' },
+  { path: '/admin/quota', icon: <Gauge size={18} />, label: 'API Kotası' },
 ];
 
 export default function Sidebar({ collapsed, onToggle, isDarkTheme, toggleTheme }) {
