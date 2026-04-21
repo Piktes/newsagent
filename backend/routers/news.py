@@ -169,9 +169,9 @@ def news_count(
     if tag_id:
         base = base.filter(NewsItem.tag_id == tag_id)
     if date_from:
-        base = base.filter(NewsItem.fetched_at >= datetime.fromisoformat(date_from.replace("Z", "+00:00")).replace(tzinfo=None))
+        base = base.filter(NewsItem.published_at.isnot(None), NewsItem.published_at >= datetime.fromisoformat(date_from.replace("Z", "+00:00")).replace(tzinfo=None))
     if date_to:
-        base = base.filter(NewsItem.fetched_at <= datetime.fromisoformat(date_to.replace("Z", "+00:00")).replace(tzinfo=None))
+        base = base.filter(NewsItem.published_at.isnot(None), NewsItem.published_at <= datetime.fromisoformat(date_to.replace("Z", "+00:00")).replace(tzinfo=None))
     if source_types:
         base = base.filter(NewsItem.source_type.in_(source_types))
 
@@ -189,13 +189,14 @@ def news_count(
         count = base.filter(NewsItem.source_type == st).count()
         today = base.filter(
             NewsItem.source_type == st,
-            NewsItem.fetched_at >= today_start
+            NewsItem.published_at.isnot(None),
+            NewsItem.published_at >= today_start
         ).count()
         source_counts[st.value] = {"count": count, "today": today}
 
     # Total today
-    total_today = base.filter(NewsItem.fetched_at >= today_start).count()
-    today_unread = base.filter(NewsItem.fetched_at >= today_start, NewsItem.is_read == False).count()
+    total_today = base.filter(NewsItem.published_at.isnot(None), NewsItem.published_at >= today_start).count()
+    today_unread = base.filter(NewsItem.published_at.isnot(None), NewsItem.published_at >= today_start, NewsItem.is_read == False).count()
 
     # Sentiment distribution
     sentiment_positive = base.filter(NewsItem.sentiment == "positive").count()

@@ -244,7 +244,7 @@ export default function DashboardPage() {
     };
     const interval = setInterval(poll, 30000);
     return () => clearInterval(interval);
-  }, [tagFilter]);
+  }, [tagFilter, isToday]);
 
   const handleSearch = async (e) => {
     e?.preventDefault();
