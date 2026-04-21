@@ -137,8 +137,6 @@ export default function DashboardPage() {
 
   const fetchNews = useCallback(async (sourcePlatforms) => {
     setLoading(true);
-    setNewItemIds(new Set());
-    setShowNewOnly(false);
     try {
       const platforms = sourcePlatforms || selectedPlatforms;
       const allPlatforms = platforms.length === SOURCE_OPTIONS.length;
