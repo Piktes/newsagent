@@ -126,9 +126,11 @@ export default function DashboardPage() {
   // New news banner
   const [newCount, setNewCount] = useState(0);
   const [newTags, setNewTags] = useState([]);
-  const [newItemIds, setNewItemIds] = useState(new Set());
-  const [showNewOnly, setShowNewOnly] = useState(false);
   const lastKnownIdRef = useRef(0);
+
+  const isNewItem = (item) =>
+    isToday && !item.is_read && item.published_at &&
+    (Date.now() - new Date(item.published_at).getTime()) < 60 * 60 * 1000;
 
   const isToday = location.pathname === '/today';
   const tagFilter = searchParams.get('tag') || selectedTagId;
@@ -159,19 +161,7 @@ export default function DashboardPage() {
       const res = await newsApi.list(params);
       setNews(res.data);
       if (res.data.length > 0 && page === 1) {
-        const maxId = Math.max(...res.data.map(n => n.id));
-        lastKnownIdRef.current = maxId;
-        // Mark items with ID > last-seen ID as "new"
-        const lastSeenKey = 'haberajani_last_seen_id';
-        const lastSeenId = parseInt(localStorage.getItem(lastSeenKey) || '0', 10);
-        if (lastSeenId > 0) {
-          const freshIds = new Set(res.data.filter(n => n.id > lastSeenId).map(n => n.id));
-          if (freshIds.size > 0) setNewItemIds(freshIds);
-        }
-        // Save current max ID — updated on page unload so new items stay visible during session
-        const saveId = () => localStorage.setItem(lastSeenKey, String(maxId));
-        window.addEventListener('beforeunload', saveId, { once: true });
-        if (lastSeenId === 0) localStorage.setItem(lastSeenKey, String(maxId));
+        lastKnownIdRef.current = Math.max(...res.data.map(n => n.id));
       }
       setNewCount(0);
     } catch (err) {
@@ -237,7 +227,6 @@ export default function DashboardPage() {
           if (freshIds.size > 0) {
             setNewCount(freshIds.size);
             setNewTags(new_tags || []);
-            setNewItemIds(freshIds);
           }
         }
       } catch (e) {}
@@ -442,19 +431,6 @@ export default function DashboardPage() {
       {/* Filters */}
       <div className="filters-bar">
         <div className="filters-bar-inner">
-          {newItemIds.size > 0 && (
-            <div className="filter-group">
-              <button
-                className={`filter-chip new-chip ${showNewOnly ? 'active' : ''}`}
-                style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}
-                onClick={() => setShowNewOnly(v => !v)}
-              >
-                <span className="new-chip-dot" />
-                YENİ ({newItemIds.size})
-              </button>
-            </div>
-          )}
-          {newItemIds.size > 0 && <div className="filter-divider" />}
           <div className="filter-group">
             <span className="filter-label"><ArrowUpDown size={12} /> Sıralama</span>
             <div className="filter-chips">
@@ -524,8 +500,8 @@ export default function DashboardPage() {
             <p>{isToday ? 'Bugün için haber bulunamadı' : 'Etiket ekleyerek haber taramaya başlayın'}</p>
           </div>
         ) : (
-          (showNewOnly ? news.filter(n => newItemIds.has(n.id)) : news).map(item => (
-            <NewsCard key={item.id} item={item} onUpdate={handleUpdate} isNew={newItemIds.has(item.id)} />
+          news.map(item => (
+            <NewsCard key={item.id} item={item} onUpdate={handleUpdate} isNew={isNewItem(item)} />
           ))
         )}
       </div>
