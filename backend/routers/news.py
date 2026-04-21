@@ -125,22 +125,11 @@ def list_news(
             NewsItem.user_note.ilike(search)
         ))
     if date_from:
-        from sqlalchemy import and_, case
         df = date_from.replace(tzinfo=None) if date_from.tzinfo else date_from
-        q = q.filter(
-            or_(
-                and_(NewsItem.published_at.isnot(None), NewsItem.published_at >= df),
-                and_(NewsItem.published_at.is_(None), NewsItem.fetched_at >= df),
-            )
-        )
+        q = q.filter(NewsItem.published_at.isnot(None), NewsItem.published_at >= df)
     if date_to:
         dt = date_to.replace(tzinfo=None) if date_to.tzinfo else date_to
-        q = q.filter(
-            or_(
-                and_(NewsItem.published_at.isnot(None), NewsItem.published_at <= dt),
-                and_(NewsItem.published_at.is_(None), NewsItem.fetched_at <= dt),
-            )
-        )
+        q = q.filter(NewsItem.published_at.isnot(None), NewsItem.published_at <= dt)
 
     # Sort order
     order_func = asc if sort_order == "asc" else desc
