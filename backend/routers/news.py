@@ -125,9 +125,11 @@ def list_news(
             NewsItem.user_note.ilike(search)
         ))
     if date_from:
-        q = q.filter(NewsItem.fetched_at >= date_from)
+        df = date_from.replace(tzinfo=None) if date_from.tzinfo else date_from
+        q = q.filter(NewsItem.fetched_at >= df)
     if date_to:
-        q = q.filter(NewsItem.fetched_at <= date_to)
+        dt = date_to.replace(tzinfo=None) if date_to.tzinfo else date_to
+        q = q.filter(NewsItem.fetched_at <= dt)
 
     # Sort order
     order_func = asc if sort_order == "asc" else desc
