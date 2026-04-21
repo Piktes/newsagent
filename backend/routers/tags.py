@@ -2,7 +2,7 @@
 Haberajani - Tags Router
 Tag CRUD with color and language settings.
 """
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Query
 from sqlalchemy.orm import Session
 from typing import List
 
@@ -90,6 +90,7 @@ def delete_tag(
 def scan_tag_manually(
     tag_id: int,
     background_tasks: BackgroundTasks,
+    days_back: int = Query(30, ge=1, le=365),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -97,16 +98,17 @@ def scan_tag_manually(
     if not tag:
         raise HTTPException(status_code=404, detail="Etiket bulunamadı")
 
-    background_tasks.add_task(scan_for_user_tag, current_user.id, tag.id)
-    return {"message": "Tarama arka planda başlatıldı."}
+    background_tasks.add_task(scan_for_user_tag, current_user.id, tag.id, None, days_back)
+    return {"message": "Tarama arka planda başlatıldı.", "days_back": days_back}
 
 @router.post("/scan-all", status_code=202)
 def scan_all_user_tags(
     background_tasks: BackgroundTasks,
+    days_back: int = Query(30, ge=1, le=365),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     tags = db.query(Tag).filter(Tag.user_id == current_user.id).all()
     for tag in tags:
-        background_tasks.add_task(scan_for_user_tag, current_user.id, tag.id)
-    return {"message": f"{len(tags)} etiket için tarama başlatıldı."}
+        background_tasks.add_task(scan_for_user_tag, current_user.id, tag.id, None, days_back)
+    return {"message": f"{len(tags)} etiket için tarama başlatıldı.", "days_back": days_back}

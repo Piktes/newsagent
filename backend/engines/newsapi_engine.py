@@ -45,12 +45,12 @@ class NewsApiEngine(BaseNewsEngine):
         self.user_id = user_id
         self.username = username
 
-    def search(self, query: str, language: str = "tr", max_results: int = 20) -> List[NewsResult]:
+    def search(self, query: str, language: str = "tr", max_results: int = 20, days_back: int = 30) -> List[NewsResult]:
         if not self.api_key:
             return []
 
         lang_code = _LANG_MAP.get(language, "tur")
-        date_start = (datetime.now(timezone.utc) - timedelta(days=7)).strftime("%Y-%m-%d")
+        date_start = (datetime.now(timezone.utc) - timedelta(days=days_back)).strftime("%Y-%m-%d")
         phrase = normalize_query(query)
 
         results = []
@@ -61,7 +61,7 @@ class NewsApiEngine(BaseNewsEngine):
                 "keywordSearchMode": "exact",
                 "lang": lang_code,
                 "dateStart": date_start,
-                "count": min(max_results, 50),
+                "count": min(max_results, 100),
                 "resultType": "articles",
                 "articlesSortBy": "date",
                 "articlesSortByAsc": False,

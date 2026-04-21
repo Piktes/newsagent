@@ -51,8 +51,8 @@ export const tagsApi = {
   create: (data) => api.post('/tags/', data),
   update: (id, data) => api.put(`/tags/${id}`, data),
   delete: (id) => api.delete(`/tags/${id}`),
-  scan: (id) => api.post(`/tags/${id}/scan`),
-  scanAll: () => api.post(`/tags/scan-all`),
+  scan: (id, daysBack = 30) => api.post(`/tags/${id}/scan?days_back=${daysBack}`),
+  scanAll: (daysBack = 30) => api.post(`/tags/scan-all?days_back=${daysBack}`),
 };
 
 // ─── Sources ──────────────────────────────────────────

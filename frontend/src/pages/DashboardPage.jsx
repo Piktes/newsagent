@@ -127,6 +127,10 @@ export default function DashboardPage() {
   const [newCount, setNewCount] = useState(0);
   const [newTags, setNewTags] = useState([]);
   const lastKnownIdRef = useRef(0);
+  const [lastFetchedAt, setLastFetchedAt] = useState(null);
+
+  // Tarama aralığı (gün)
+  const [scanDays, setScanDays] = useState(30);
 
   const isNewItem = (item) =>
     isToday && !item.is_read && item.published_at &&
@@ -159,11 +163,11 @@ export default function DashboardPage() {
       const res = await newsApi.list(params);
       setNews(res.data);
       if (page === 1) {
-        // Gerçek DB max ID'sini al — sadece sayfa 1 max ID'si değil
         const idParams = {};
         if (tagFilter) idParams.tag_id = tagFilter;
         const idRes = await newsApi.latestId(idParams);
         lastKnownIdRef.current = idRes.data.latest_id || 0;
+        if (idRes.data.last_fetched_at) setLastFetchedAt(idRes.data.last_fetched_at);
       }
       setNewCount(0);
     } catch (err) {
@@ -251,8 +255,8 @@ export default function DashboardPage() {
     if (!scanning) {
       setScanning(true);
       try {
-        if (tagFilter && tagFilter !== '') await tagsApi.scan(tagFilter);
-        else await tagsApi.scanAll();
+        if (tagFilter && tagFilter !== '') await tagsApi.scan(tagFilter, scanDays);
+        else await tagsApi.scanAll(scanDays);
       } catch (e) {}
       setTimeout(() => setScanning(false), 2000);
     }
@@ -370,6 +374,12 @@ export default function DashboardPage() {
         <h1>
           {isToday ? <><Calendar size={24} /> Bugün Ne Oldu</> : <><Newspaper size={24} /> Haber Akışı</>}
         </h1>
+        {lastFetchedAt && (
+          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+            <RefreshCw size={11} />
+            Son tarama: {new Date(lastFetchedAt).toLocaleString('tr-TR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' })}
+          </span>
+        )}
       </div>
 
       {/* Active tag banner */}
@@ -434,6 +444,19 @@ export default function DashboardPage() {
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
+        <select
+          className="filter-select"
+          value={scanDays}
+          onChange={e => setScanDays(Number(e.target.value))}
+          onClick={e => e.stopPropagation()}
+          style={{ flexShrink: 0 }}
+          title="Tarama aralığı (gün geriye)"
+        >
+          <option value={7}>7 gün</option>
+          <option value={30}>30 gün</option>
+          <option value={60}>60 gün</option>
+          <option value={90}>90 gün</option>
+        </select>
         <button type="submit" className="btn btn-primary" disabled={scanning} style={{ gap: '0.375rem' }}>
           {scanning ? <RefreshCw size={15} className="spin" /> : <Search size={15} />}
           {scanning ? 'Aranıyor...' : 'Ara'}
@@ -540,7 +563,7 @@ export default function DashboardPage() {
         <div className="filters-bar-actions">
           <button className="btn btn-outline" style={{ gap: '0.375rem', whiteSpace: 'nowrap' }} onClick={handleExportPdf} disabled={exportingPdf}>
             {exportingPdf ? <RefreshCw size={14} className="spin" /> : <FileDown size={14} />}
-            PDF
+            Rapor Al
           </button>
         </div>
       </div>

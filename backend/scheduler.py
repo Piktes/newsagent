@@ -79,7 +79,7 @@ def normalize_turkish(text: str) -> str:
     return text.lower()
 
 
-def scan_for_user_tag(user_id: int, tag_id: int, source_id: Optional[int] = None):
+def scan_for_user_tag(user_id: int, tag_id: int, source_id: Optional[int] = None, days_back: int = 30):
     """Scan news for a specific user's tag from all their sources."""
     db: Session = SessionLocal()
     try:
@@ -108,7 +108,7 @@ def scan_for_user_tag(user_id: int, tag_id: int, source_id: Optional[int] = None
         from config import ER_API_KEY
         if ER_API_KEY:
             er_engine = NewsApiEngine(api_key=ER_API_KEY, user_id=user_id, username=username)
-            _scan_with_engine(db, er_engine, tag, user_id, None)
+            _scan_with_engine(db, er_engine, tag, user_id, None, days_back=days_back)
 
         # If no custom sources, also use free engines
         if not sources:
@@ -129,7 +129,7 @@ def scan_for_user_tag(user_id: int, tag_id: int, source_id: Optional[int] = None
         db.close()
 
 
-def _scan_with_engine(db: Session, engine, tag: Tag, user_id: int, source: Optional[NewsSource]):
+def _scan_with_engine(db: Session, engine, tag: Tag, user_id: int, source: Optional[NewsSource], days_back: int = 30):
     """Run a scan with retry mechanism and logging."""
     start_time = time.time()
     items_found = 0
@@ -165,7 +165,11 @@ def _scan_with_engine(db: Session, engine, tag: Tag, user_id: int, source: Optio
                 if source and source.type == SourceType.RSS and source.url:
                     results = engine.parse_custom_feed(source.url)
                 else:
-                    results = engine.search(tag.name, language=lang)
+                    from engines.newsapi_engine import NewsApiEngine as _ER
+                    if isinstance(engine, _ER):
+                        results = engine.search(tag.name, language=lang, days_back=days_back)
+                    else:
+                        results = engine.search(tag.name, language=lang)
 
                 for r in results:
                     # Relevance check: skip for newsapi (EventRegistry handles relevance internally)

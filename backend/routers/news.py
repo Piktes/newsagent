@@ -91,7 +91,14 @@ def get_latest_id(
                 if tag:
                     new_tags.append(tag.name)
 
-    return {"latest_id": latest_id, "total": total, "new_tags": new_tags}
+    # Son çekilme zamanı (tüm etiketler)
+    last_item = db.query(NewsItem).filter(
+        NewsItem.user_id == current_user.id,
+        NewsItem.is_hidden == False
+    ).order_by(desc(NewsItem.fetched_at)).first()
+    last_fetched_at = last_item.fetched_at.isoformat() if last_item and last_item.fetched_at else None
+
+    return {"latest_id": latest_id, "total": total, "new_tags": new_tags, "last_fetched_at": last_fetched_at}
 
 
 @router.get("/", response_model=List[NewsItemResponse])
@@ -108,7 +115,7 @@ def list_news(
     date_to: Optional[datetime] = None,
     sort_order: Optional[str] = Query("desc", regex="^(asc|desc)$"),
     page: int = Query(1, ge=1),
-    page_size: int = Query(20, ge=1, le=100),
+    page_size: int = Query(20, ge=1, le=500),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
