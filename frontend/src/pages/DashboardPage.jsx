@@ -223,7 +223,14 @@ export default function DashboardPage() {
         const { latest_id, new_tags } = res.data;
         if (lastKnownIdRef.current > 0 && latest_id > lastKnownIdRef.current) {
           // Fetch actual new items to get accurate count (ID range ≠ item count)
-          const newRes = await newsApi.list({ page_size: 50, sort_order: 'desc', ...(tagFilter ? { tag_id: tagFilter } : {}) });
+          const pollParams = { page_size: 50, sort_order: 'desc', ...(tagFilter ? { tag_id: tagFilter } : {}) };
+        if (isToday) {
+          const s = new Date(); s.setHours(0, 0, 0, 0);
+          const e = new Date(); e.setHours(23, 59, 59, 999);
+          pollParams.date_from = s.toISOString();
+          pollParams.date_to = e.toISOString();
+        }
+        const newRes = await newsApi.list(pollParams);
           const freshIds = new Set(
             (newRes.data || []).filter(n => n.id > lastKnownIdRef.current).map(n => n.id)
           );
