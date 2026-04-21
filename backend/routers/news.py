@@ -12,7 +12,7 @@ from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
-from sqlalchemy import or_, desc, asc
+from sqlalchemy import or_, desc, asc, func
 from sqlalchemy.orm import Session
 
 from auth import get_current_user
@@ -131,9 +131,10 @@ def list_news(
         dt = date_to.replace(tzinfo=None) if date_to.tzinfo else date_to
         q = q.filter(NewsItem.published_at.isnot(None), NewsItem.published_at <= dt)
 
-    # Sort order
+    # Sort order — published_at öncelikli, NULL ise fetched_at'e düşer
     order_func = asc if sort_order == "asc" else desc
-    items = q.order_by(order_func(NewsItem.fetched_at)).offset(
+    sort_col = func.coalesce(NewsItem.published_at, NewsItem.fetched_at)
+    items = q.order_by(order_func(sort_col)).offset(
         (page - 1) * page_size
     ).limit(page_size).all()
 
@@ -160,7 +161,6 @@ def news_count(
     current_user: User = Depends(get_current_user)
 ):
     from datetime import date, time as dtime
-    from sqlalchemy import func
 
     base = db.query(NewsItem).filter(
         NewsItem.user_id == current_user.id,
