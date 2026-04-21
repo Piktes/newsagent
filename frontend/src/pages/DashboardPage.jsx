@@ -158,8 +158,12 @@ export default function DashboardPage() {
 
       const res = await newsApi.list(params);
       setNews(res.data);
-      if (res.data.length > 0 && page === 1) {
-        lastKnownIdRef.current = Math.max(...res.data.map(n => n.id));
+      if (page === 1) {
+        // Gerçek DB max ID'sini al — sadece sayfa 1 max ID'si değil
+        const idParams = {};
+        if (tagFilter) idParams.tag_id = tagFilter;
+        const idRes = await newsApi.latestId(idParams);
+        lastKnownIdRef.current = idRes.data.latest_id || 0;
       }
       setNewCount(0);
     } catch (err) {
