@@ -27,14 +27,26 @@ try:
 
     _font_reg = "Helvetica"
     _font_bold = "Helvetica-Bold"
-    _arial = "C:/Windows/Fonts/arial.ttf"
-    _arialbd = "C:/Windows/Fonts/arialbd.ttf"
-    if os.path.exists(_arial):
-        pdfmetrics.registerFont(TTFont("HaberFont", _arial))
-        _font_reg = "HaberFont"
-    if os.path.exists(_arialbd):
-        pdfmetrics.registerFont(TTFont("HaberFont-Bold", _arialbd))
-        _font_bold = "HaberFont-Bold"
+
+    _font_candidates = [
+        ("C:/Windows/Fonts/arial.ttf",     "C:/Windows/Fonts/arialbd.ttf"),
+        ("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+         "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"),
+        ("/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+         "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf"),
+        ("/usr/share/fonts/truetype/freefont/FreeSans.ttf",
+         "/usr/share/fonts/truetype/freefont/FreeSansBold.ttf"),
+        ("/usr/share/fonts/truetype/ubuntu/Ubuntu-R.ttf",
+         "/usr/share/fonts/truetype/ubuntu/Ubuntu-B.ttf"),
+    ]
+    for _reg_path, _bold_path in _font_candidates:
+        if os.path.exists(_reg_path):
+            pdfmetrics.registerFont(TTFont("HaberFont", _reg_path))
+            _font_reg = "HaberFont"
+            if os.path.exists(_bold_path):
+                pdfmetrics.registerFont(TTFont("HaberFont-Bold", _bold_path))
+                _font_bold = "HaberFont-Bold"
+            break
 except Exception:
     _font_reg = "Helvetica"
     _font_bold = "Helvetica-Bold"
@@ -627,7 +639,7 @@ def export_pdf(
     story.append(src_tbl)
     story.append(Spacer(1, 0.5 * cm))
 
-    # ── Article list ─────────────────────────────────────────────────────────
+    # ── Article list grouped by tag ──────────────────────────────────────────
     story.append(Paragraph("Haber Listesi", s_section))
     story.append(HRFlowable(width=W, thickness=1.5, color=C_BLUE, spaceAfter=10))
 
@@ -642,83 +654,114 @@ def export_pdf(
         "newsapi": "NewsAPI",
     }
 
-    for i, it in enumerate(items, 1):
-        stype_val  = it.source_type.value if it.source_type else ""
-        src_label  = SRC_LABEL.get(stype_val, stype_val.title())
-        sent_text, sent_hex = SENT_LABEL.get(it.sentiment, ("—", "#94a3b8"))
-        date_str   = it.published_at.strftime("%d.%m.%Y %H:%M") if it.published_at else "—"
-        source_name = pt(it.source_name or src_label)
+    # Group items by tag preserving published_at desc order
+    from collections import defaultdict
+    tag_item_map: dict = defaultdict(list)
+    for it in items:
+        tag_item_map[it.tag_id].append(it)
 
-        # Card: number accent | content
-        num_cell = Table(
-            [[Paragraph(
-                f'<font color="white" size="9"><b>{i}</b></font>',
-                style("num", fontSize=9, fontName=_font_bold, textColor=colors.white,
-                      leading=12, alignment=1)
-            )]],
-            colWidths=[0.65 * cm], rowHeights=[0.65 * cm]
+    tag_obj_map = {t.id: t for t in db.query(Tag).filter(Tag.id.in_(list(tag_item_map.keys()))).all()}
+
+    s_tag_header = style("tag_hdr", fontSize=11, fontName=_font_bold,
+                         textColor=colors.white, leading=16)
+
+    for tid, tag_items_list in tag_item_map.items():
+        tag_obj = tag_obj_map.get(tid)
+        tag_display = pt(tag_obj.name if tag_obj else "Etiket")
+
+        # Tag header band
+        tag_hdr_tbl = Table(
+            [[Paragraph(tag_display, s_tag_header)]],
+            colWidths=[W]
         )
-        num_cell.setStyle(TableStyle([
-            ("BACKGROUND",    (0, 0), (0, 0), C_BLUE),
-            ("VALIGN",        (0, 0), (0, 0), "MIDDLE"),
-            ("LEFTPADDING",   (0, 0), (0, 0), 0),
-            ("RIGHTPADDING",  (0, 0), (0, 0), 0),
-            ("TOPPADDING",    (0, 0), (0, 0), 0),
-            ("BOTTOMPADDING", (0, 0), (0, 0), 0),
+        tag_hdr_tbl.setStyle(TableStyle([
+            ("BACKGROUND",    (0, 0), (-1, -1), C_NAVY),
+            ("LEFTPADDING",   (0, 0), (-1, -1), 10),
+            ("RIGHTPADDING",  (0, 0), (-1, -1), 10),
+            ("TOPPADDING",    (0, 0), (-1, -1), 7),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
+            ("LINEBELOW",     (0, 0), (-1, -1), 2, C_BLUE),
         ]))
-
-        content_lines = [
-            Paragraph(pt(it.title), s_title),
-            Paragraph(
-                f'{source_name}  &bull;  {date_str}  &bull;  '
-                f'<font color="{sent_hex}"><b>{sent_text}</b></font>',
-                s_small
-            ),
-        ]
-        if it.summary:
-            snippet = pt(it.summary[:300]) + ("..." if len(it.summary) > 300 else "")
-            content_lines.append(Paragraph(snippet, s_body))
-
-        # Clickable links row
-        link_parts = []
-        if it.url:
-            link_parts.append(f'<link href="{url_xml(it.url)}" color="#3b82f6">Habere Git</link>')
-        if it.source_url and it.source_url != it.url:
-            link_parts.append(f'<link href="{url_xml(it.source_url)}" color="#8b5cf6">Kaynak</link>')
-        if link_parts:
-            content_lines.append(Paragraph(
-                '  |  '.join(link_parts),
-                style("lnk", fontSize=7.5, fontName=_font_reg, textColor=colors.HexColor("#3b82f6"),
-                      leading=12, spaceBefore=2)
-            ))
-
-        content_tbl = Table(
-            [[c] for c in content_lines],
-            colWidths=[W - 0.9 * cm]
-        )
-        content_tbl.setStyle(TableStyle([
-            ("VALIGN",        (0, 0), (-1, -1), "TOP"),
-            ("LEFTPADDING",   (0, 0), (-1, -1), 0),
-            ("RIGHTPADDING",  (0, 0), (-1, -1), 0),
-            ("TOPPADDING",    (0, 0), (-1, -1), 1),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
-        ]))
-
-        card = Table(
-            [[num_cell, content_tbl]],
-            colWidths=[0.75 * cm, W - 0.75 * cm]
-        )
-        card.setStyle(TableStyle([
-            ("VALIGN",        (0, 0), (-1, -1), "TOP"),
-            ("BACKGROUND",    (0, 0), (-1, -1), colors.white),
-            ("BOX",           (0, 0), (-1, -1), 0.5, C_BORDER),
-            ("LEFTPADDING",   (1, 0), (1, 0), 10),
-            ("RIGHTPADDING",  (1, 0), (1, 0), 8),
-            ("TOPPADDING",    (0, 0), (-1, -1), 8),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
-        ]))
-        story.append(card)
+        story.append(tag_hdr_tbl)
         story.append(Spacer(1, 0.2 * cm))
+
+        for i, it in enumerate(tag_items_list, 1):
+            stype_val  = it.source_type.value if it.source_type else ""
+            src_label  = SRC_LABEL.get(stype_val, stype_val.title())
+            sent_text, sent_hex = SENT_LABEL.get(it.sentiment, ("—", "#94a3b8"))
+            date_str   = it.published_at.strftime("%d.%m.%Y %H:%M") if it.published_at else "—"
+            source_name = pt(it.source_name or src_label)
+
+            num_cell = Table(
+                [[Paragraph(
+                    f'<font color="white" size="9"><b>{i}</b></font>',
+                    style("num", fontSize=9, fontName=_font_bold, textColor=colors.white,
+                          leading=12, alignment=1)
+                )]],
+                colWidths=[0.65 * cm], rowHeights=[0.65 * cm]
+            )
+            num_cell.setStyle(TableStyle([
+                ("BACKGROUND",    (0, 0), (0, 0), C_BLUE),
+                ("VALIGN",        (0, 0), (0, 0), "MIDDLE"),
+                ("LEFTPADDING",   (0, 0), (0, 0), 0),
+                ("RIGHTPADDING",  (0, 0), (0, 0), 0),
+                ("TOPPADDING",    (0, 0), (0, 0), 0),
+                ("BOTTOMPADDING", (0, 0), (0, 0), 0),
+            ]))
+
+            content_lines = [
+                Paragraph(pt(it.title), s_title),
+                Paragraph(
+                    f'{source_name}  &bull;  {date_str}  &bull;  '
+                    f'<font color="{sent_hex}"><b>{sent_text}</b></font>',
+                    s_small
+                ),
+            ]
+            if it.summary:
+                snippet = pt(it.summary[:300]) + ("..." if len(it.summary) > 300 else "")
+                content_lines.append(Paragraph(snippet, s_body))
+
+            link_parts = []
+            if it.url:
+                link_parts.append(f'<link href="{url_xml(it.url)}" color="#3b82f6">Habere Git</link>')
+            if it.source_url and it.source_url != it.url:
+                link_parts.append(f'<link href="{url_xml(it.source_url)}" color="#8b5cf6">Kaynak</link>')
+            if link_parts:
+                content_lines.append(Paragraph(
+                    '  |  '.join(link_parts),
+                    style("lnk", fontSize=7.5, fontName=_font_reg, textColor=colors.HexColor("#3b82f6"),
+                          leading=12, spaceBefore=2)
+                ))
+
+            content_tbl = Table(
+                [[c] for c in content_lines],
+                colWidths=[W - 0.9 * cm]
+            )
+            content_tbl.setStyle(TableStyle([
+                ("VALIGN",        (0, 0), (-1, -1), "TOP"),
+                ("LEFTPADDING",   (0, 0), (-1, -1), 0),
+                ("RIGHTPADDING",  (0, 0), (-1, -1), 0),
+                ("TOPPADDING",    (0, 0), (-1, -1), 1),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+            ]))
+
+            card = Table(
+                [[num_cell, content_tbl]],
+                colWidths=[0.75 * cm, W - 0.75 * cm]
+            )
+            card.setStyle(TableStyle([
+                ("VALIGN",        (0, 0), (-1, -1), "TOP"),
+                ("BACKGROUND",    (0, 0), (-1, -1), colors.white),
+                ("BOX",           (0, 0), (-1, -1), 0.5, C_BORDER),
+                ("LEFTPADDING",   (1, 0), (1, 0), 10),
+                ("RIGHTPADDING",  (1, 0), (1, 0), 8),
+                ("TOPPADDING",    (0, 0), (-1, -1), 8),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+            ]))
+            story.append(card)
+            story.append(Spacer(1, 0.2 * cm))
+
+        story.append(Spacer(1, 0.4 * cm))
 
     # ── Build ────────────────────────────────────────────────────────────────
     try:
