@@ -168,13 +168,14 @@ def _scan_with_engine(db: Session, engine, tag: Tag, user_id: int, source: Optio
                     results = engine.search(tag.name, language=lang)
 
                 for r in results:
-                    # Relevance check: exact phrase must appear in title or summary
-                    from engines.newsapi_engine import normalize_query as _nq
-                    tag_phrase = normalize_turkish(_nq(tag.name))
-                    title_lower = normalize_turkish(r.title or "")
-                    summary_lower = normalize_turkish(r.summary or "")
-                    if tag_phrase not in title_lower and tag_phrase not in summary_lower:
-                        continue
+                    # Relevance check: skip for newsapi (EventRegistry handles relevance internally)
+                    if engine.get_engine_name() != "newsapi":
+                        from engines.newsapi_engine import normalize_query as _nq
+                        tag_phrase = normalize_turkish(_nq(tag.name))
+                        title_lower = normalize_turkish(r.title or "")
+                        summary_lower = normalize_turkish(r.summary or "")
+                        if tag_phrase not in title_lower and tag_phrase not in summary_lower:
+                            continue
 
                     url_h = _url_hash(r.url)
                     # Duplicate detection
