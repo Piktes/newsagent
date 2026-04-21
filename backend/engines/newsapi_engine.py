@@ -55,7 +55,6 @@ class NewsApiEngine(BaseNewsEngine):
 
         results = []
         try:
-            # getEvents: clusters of related articles — better precision than getArticles
             payload = {
                 "apiKey": self.api_key,
                 "keyword": phrase,
@@ -63,36 +62,30 @@ class NewsApiEngine(BaseNewsEngine):
                 "lang": lang_code,
                 "dateStart": date_start,
                 "count": min(max_results, 50),
-                "resultType": "events",
-                "eventsSortBy": "date",
-                "eventsSortByAsc": False,
-                "includeEventTitle": True,
-                "includeEventSummary": True,
-                "includeEventImage": True,
-                "includeEventArticles": True,
-                "eventArticlesCount": 1,
-                "includeEventArticlesDuplicates": False,
+                "resultType": "articles",
+                "articlesSortBy": "date",
+                "articlesSortByAsc": False,
+                "includeArticleTitle": True,
+                "includeArticleBody": True,
+                "includeArticleImage": True,
+                "includeArticleEventUri": False,
+                "articleBodyLen": 300,
             }
 
-            resp = requests.post(f"{ER_BASE}/event/getEvents", json=payload, timeout=15)
+            resp = requests.post(f"{ER_BASE}/article/getArticles", json=payload, timeout=15)
             resp.raise_for_status()
             data = resp.json()
 
-            events = data.get("events", {}).get("results", [])
+            articles = data.get("articles", {}).get("results", [])
             seen_urls: set = set()
 
-            for event in events:
-                title = (event.get("title") or {})
-                title_text = title.get(lang_code[:3]) or title.get("eng") or next(iter(title.values()), "")
-                summary_obj = event.get("summary") or {}
-                summary_text = summary_obj.get(lang_code[:3]) or summary_obj.get("eng") or next(iter(summary_obj.values()), "")
-                image = event.get("image")
-
-                # Use representative article URL if available
-                articles = (event.get("articles") or {}).get("results", [])
-                url = articles[0].get("url", "") if articles else ""
-                source_name = (articles[0].get("source") or {}).get("title", "NewsAPI.ai") if articles else "NewsAPI.ai"
-                published_at = event.get("eventDate") or (articles[0].get("dateTime") if articles else None)
+            for article in articles:
+                url = article.get("url", "")
+                title_text = article.get("title", "")
+                summary_text = article.get("body", "") or ""
+                image = article.get("image")
+                source_name = (article.get("source") or {}).get("title", "NewsAPI.ai")
+                published_at = article.get("dateTime")
 
                 if not url or not title_text:
                     continue
@@ -110,7 +103,7 @@ class NewsApiEngine(BaseNewsEngine):
                 ))
 
             _log_usage(self.user_id, self.username,
-                       f'Arama: "{phrase}" ({lang_code}, {len(events)} olay, {len(results)} sonuç)',
+                       f'Arama: "{phrase}" ({lang_code}, {len(articles)} makale, {len(results)} sonuç)',
                        tokens=1)
 
         except Exception as e:
