@@ -278,6 +278,26 @@ export default function DashboardPage() {
     setPage(1);
   };
 
+  const togglePlatform = (value) => {
+    setSelectedPlatforms(prev => {
+      if (prev.includes(value)) {
+        if (prev.length === 1) return prev;
+        return prev.filter(v => v !== value);
+      }
+      return [...prev, value];
+    });
+    setPage(1);
+  };
+
+  const clearAllFilters = () => {
+    handleTagFilter('');
+    setSelectedSentiment('');
+    setDateFrom('');
+    setDateTo('');
+    setSelectedPlatforms(SOURCE_OPTIONS.map(s => s.value));
+    setPage(1);
+  };
+
   const handleUpdate = () => { fetchNews(); fetchCounts(); };
 
   const handleExportPdf = () => setShowPdfPopup(true);
@@ -323,9 +343,9 @@ export default function DashboardPage() {
   };
 
   const activeTag = tags.find(t => String(t.id) === String(tagFilter));
-  const activePlatformLabels = selectedPlatforms.length === SOURCE_OPTIONS.length
-    ? null
-    : selectedPlatforms.map(v => SOURCE_OPTIONS.find(s => s.value === v)?.label).join(', ');
+  const hasCustomPlatforms = selectedPlatforms.length < SOURCE_OPTIONS.length;
+  const hasActiveFilters = !!(selectedTagId || selectedSentiment || dateFrom || dateTo || hasCustomPlatforms);
+  const SENTIMENT_LABELS = { positive: 'Pozitif', neutral: 'Nötr', negative: 'Negatif' };
 
   return (
     <div className="dashboard-page">
@@ -421,16 +441,37 @@ export default function DashboardPage() {
         </button>
       </form>
 
-      {/* Active platform filter indicator */}
-      {activePlatformLabels && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem', padding: '0.375rem 0.75rem', borderRadius: 'var(--radius-pill)', boxShadow: 'var(--ring)', background: 'var(--bg-card)', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-          <Filter size={12} />
-          <span>Platform: <strong style={{ color: 'var(--text-primary)' }}>{activePlatformLabels}</strong></span>
-          <button style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex' }} onClick={() => { setSelectedPlatforms(SOURCE_OPTIONS.map(s => s.value)); fetchNews(SOURCE_OPTIONS.map(s => s.value)); }}><X size={12} /></button>
+      {/* Aktif filtreler özeti */}
+      {hasActiveFilters && (
+        <div className="active-filters-row">
+          {selectedTagId && activeTag && (
+            <button className="active-filter-chip" onClick={() => handleTagFilter('')}>
+              <span style={{ width: 7, height: 7, borderRadius: '50%', background: activeTag.color, flexShrink: 0 }} />
+              {activeTag.name} <X size={10} />
+            </button>
+          )}
+          {selectedSentiment && (
+            <button className="active-filter-chip" onClick={() => { setSelectedSentiment(''); setPage(1); }}>
+              <BarChart2 size={10} /> {SENTIMENT_LABELS[selectedSentiment]} <X size={10} />
+            </button>
+          )}
+          {(dateFrom || dateTo) && (
+            <button className="active-filter-chip" onClick={() => { setDateFrom(''); setDateTo(''); setPage(1); }}>
+              <Calendar size={10} /> {dateFrom || '...'} — {dateTo || '...'} <X size={10} />
+            </button>
+          )}
+          {hasCustomPlatforms && SOURCE_OPTIONS.filter(s => selectedPlatforms.includes(s.value)).map(({ value, label, Icon }) => (
+            <button key={value} className="active-filter-chip" onClick={() => togglePlatform(value)}>
+              <Icon size={10} /> {label} <X size={10} />
+            </button>
+          ))}
+          <button className="active-filter-chip active-filter-clear" onClick={clearAllFilters}>
+            <X size={10} /> Tümünü Temizle
+          </button>
         </div>
       )}
 
-      {/* Filters */}
+      {/* Filtreler */}
       <div className="filters-bar">
         <div className="filters-bar-inner">
           <div className="filter-group">
@@ -463,6 +504,24 @@ export default function DashboardPage() {
             </select>
           </div>
 
+          <div className="filter-divider" />
+
+          <div className="filter-group">
+            <span className="filter-label"><SlidersHorizontal size={12} /> Kaynak</span>
+            <div className="filter-chips">
+              {SOURCE_OPTIONS.map(({ value, label, Icon }) => (
+                <button
+                  key={value}
+                  className={`filter-chip source-chip ${hasCustomPlatforms ? (selectedPlatforms.includes(value) ? 'active' : 'muted') : ''}`}
+                  onClick={() => togglePlatform(value)}
+                  style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+                >
+                  <Icon size={11} /> {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {!isToday && (
             <>
               <div className="filter-divider" />
@@ -479,11 +538,6 @@ export default function DashboardPage() {
         </div>
 
         <div className="filters-bar-actions">
-          {(selectedTagId || selectedSentiment || dateFrom || dateTo) && (
-            <button className="btn btn-sm btn-outline" style={{ gap: '0.375rem' }} onClick={() => { handleTagFilter(''); setSelectedSentiment(''); setDateFrom(''); setDateTo(''); }}>
-              <X size={12} /> Temizle
-            </button>
-          )}
           <button className="btn btn-outline" style={{ gap: '0.375rem', whiteSpace: 'nowrap' }} onClick={handleExportPdf} disabled={exportingPdf}>
             {exportingPdf ? <RefreshCw size={14} className="spin" /> : <FileDown size={14} />}
             PDF
