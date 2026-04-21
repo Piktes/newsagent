@@ -178,8 +178,8 @@ def _scan_with_engine(db: Session, engine, tag: Tag, user_id: int, source: Optio
                             continue
 
                     url_h = _url_hash(r.url)
-                    # Duplicate detection
-                    existing = db.query(NewsItem).filter(NewsItem.url_hash == url_h).first()
+                    # Duplicate detection: per tag (same URL can appear under different tags)
+                    existing = db.query(NewsItem).filter(NewsItem.url_hash == url_h, NewsItem.tag_id == tag.id).first()
                     if existing:
                         continue
 

@@ -3,7 +3,7 @@ Haberajani - Database Models
 All SQLAlchemy models for the application.
 """
 from sqlalchemy import (
-    Column, Integer, String, Boolean, DateTime, Text, ForeignKey, Enum as SqlEnum, Float
+    Column, Integer, String, Boolean, DateTime, Text, ForeignKey, Enum as SqlEnum, Float, UniqueConstraint
 )
 from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
@@ -102,12 +102,13 @@ class NewsSource(Base):
 
 class NewsItem(Base):
     __tablename__ = "news_items"
+    __table_args__ = (UniqueConstraint('url_hash', 'tag_id', name='uq_news_url_tag'),)
 
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String(500), nullable=False)
     summary = Column(Text)  # first 2-3 sentences
     url = Column(String(1000), nullable=False)
-    url_hash = Column(String(64), unique=True, nullable=False, index=True)
+    url_hash = Column(String(64), nullable=False, index=True)
     source_name = Column(String(100))
     source_type = Column(SqlEnum(SourceType))
     thumbnail = Column(String(1000))
