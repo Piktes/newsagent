@@ -604,17 +604,21 @@ body:not(.light-theme) .nav-item.active {
 .eye-btn {
   position: absolute;
   right: 0.625rem;
+  z-index: 2;
   background: none;
   border: none;
   cursor: pointer;
-  color: var(--text-muted);
+  color: #6b7280;
   display: flex;
   align-items: center;
-  padding: 0;
+  padding: 0.25rem;
   line-height: 1;
+  flex-shrink: 0;
 }
 
-.eye-btn:hover { color: var(--text-primary); }
+.eye-btn:hover { color: #111827; }
+body:not(.light-theme) .eye-btn { color: #9ca3af; }
+body:not(.light-theme) .eye-btn:hover { color: #f9fafb; }
 
 .login-footer-note {
   margin-top: 1.25rem;
