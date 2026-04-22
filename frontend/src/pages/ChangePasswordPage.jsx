@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { authApi } from '../services/api';
-import { KeyRound, CheckCircle2, XCircle } from 'lucide-react';
+import { KeyRound, CheckCircle2, XCircle, Eye, EyeOff } from 'lucide-react';
 
 function PasswordRule({ met, text }) {
   return (
@@ -14,13 +14,32 @@ function PasswordRule({ met, text }) {
   );
 }
 
+function PasswordInput({ value, onChange, placeholder, id }) {
+  const [show, setShow] = useState(false);
+  return (
+    <div className="input-eye-wrap">
+      <input
+        id={id}
+        type={show ? 'text' : 'password'}
+        value={value}
+        onChange={onChange}
+        placeholder={placeholder}
+        required
+      />
+      <button type="button" className="eye-btn" onClick={() => setShow(v => !v)} tabIndex={-1}>
+        {show ? <EyeOff size={16} /> : <Eye size={16} />}
+      </button>
+    </div>
+  );
+}
+
 function checkRules(pw) {
   return {
-    length:    pw.length >= 8,
-    upper:     /[A-Z]/.test(pw),
-    lower:     /[a-z]/.test(pw),
-    digit:     /\d/.test(pw),
-    symbol:    /[!@#$%^&*(),.?":{}|<>_\-+=\[\]\\;'`~/]/.test(pw),
+    length:  pw.length >= 8,
+    upper:   /[A-Z]/.test(pw),
+    lower:   /[a-z]/.test(pw),
+    digit:   /\d/.test(pw),
+    symbol:  /[!@#$%^&*(),.?":{}|<>_\-+=\[\]\\;'`~/]/.test(pw),
   };
 }
 
@@ -74,14 +93,12 @@ export default function ChangePasswordPage() {
 
           <div className="form-group">
             <label>Mevcut Şifre</label>
-            <input type="password" value={current} onChange={e => setCurrent(e.target.value)}
-              placeholder="••••••" required autoFocus />
+            <PasswordInput value={current} onChange={e => setCurrent(e.target.value)} placeholder="••••••" id="current" />
           </div>
 
           <div className="form-group">
             <label>Yeni Şifre</label>
-            <input type="password" value={next} onChange={e => setNext(e.target.value)}
-              placeholder="••••••••" required />
+            <PasswordInput value={next} onChange={e => setNext(e.target.value)} placeholder="••••••••" id="next" />
             {next.length > 0 && (
               <div style={{ marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <PasswordRule met={rules.length} text="En az 8 karakter" />
@@ -95,8 +112,7 @@ export default function ChangePasswordPage() {
 
           <div className="form-group">
             <label>Yeni Şifre (Tekrar)</label>
-            <input type="password" value={confirm} onChange={e => setConfirm(e.target.value)}
-              placeholder="••••••••" required />
+            <PasswordInput value={confirm} onChange={e => setConfirm(e.target.value)} placeholder="••••••••" id="confirm" />
             {confirm.length > 0 && next !== confirm && (
               <div style={{ color: '#ef4444', fontSize: '0.8rem', marginTop: '0.25rem' }}>Şifreler eşleşmiyor</div>
             )}

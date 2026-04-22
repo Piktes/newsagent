@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { Zap, Sun, Moon } from 'lucide-react';
+import { Zap, Sun, Moon, Eye, EyeOff } from 'lucide-react';
 
 export default function LoginPage({ isDarkTheme, toggleTheme }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
@@ -33,9 +34,9 @@ export default function LoginPage({ isDarkTheme, toggleTheme }) {
       </div>
 
       <div className="login-card">
-        <button 
+        <button
           type="button"
-          className="btn btn-outline" 
+          className="btn btn-outline"
           style={{ position: 'absolute', top: '20px', right: '20px', padding: '0.5rem', borderRadius: '50%' }}
           onClick={toggleTheme}
           title="Tema Değiştir"
@@ -67,22 +68,23 @@ export default function LoginPage({ isDarkTheme, toggleTheme }) {
 
           <div className="form-group">
             <label htmlFor="password">Şifre</label>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••"
-              required
-            />
+            <div className="input-eye-wrap">
+              <input
+                id="password"
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••"
+                required
+              />
+              <button type="button" className="eye-btn" onClick={() => setShowPassword(v => !v)} tabIndex={-1}>
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
           </div>
 
           <button type="submit" className="login-btn" disabled={loading}>
-            {loading ? (
-              <span className="spinner"></span>
-            ) : (
-              'Giriş Yap'
-            )}
+            {loading ? <span className="spinner" /> : 'Giriş Yap'}
           </button>
         </form>
 
