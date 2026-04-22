@@ -58,6 +58,7 @@ class User(Base):
     password_hash = Column(String(255), nullable=False)
     role = Column(SqlEnum(UserRole), default=UserRole.USER, nullable=False)
     is_active = Column(Boolean, default=True)
+    must_change_password = Column(Boolean, default=False)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     # Relationships

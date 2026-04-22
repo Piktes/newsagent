@@ -2,19 +2,33 @@
 Haberajani - Users Router
 Login, user CRUD, admin-only operations.
 """
+import re
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
 
 from database import get_db
 from models import User, UserRole
-from schemas import LoginRequest, TokenResponse, UserCreate, UserUpdate, UserResponse
+from schemas import LoginRequest, TokenResponse, UserCreate, UserUpdate, UserResponse, ChangePasswordRequest
 from auth import (
     hash_password, verify_password, create_access_token,
     get_current_user, require_admin
 )
 
 router = APIRouter(prefix="/api/auth", tags=["Auth & Users"])
+
+
+def _validate_password_strength(password: str):
+    if len(password) < 8:
+        raise HTTPException(status_code=400, detail="Şifre en az 8 karakter olmalıdır")
+    if not re.search(r'[A-Z]', password):
+        raise HTTPException(status_code=400, detail="Şifre en az bir büyük harf içermelidir")
+    if not re.search(r'[a-z]', password):
+        raise HTTPException(status_code=400, detail="Şifre en az bir küçük harf içermelidir")
+    if not re.search(r'\d', password):
+        raise HTTPException(status_code=400, detail="Şifre en az bir rakam içermelidir")
+    if not re.search(r'[!@#$%^&*(),.?":{}|<>_\-+=\[\]\\;\'`~/]', password):
+        raise HTTPException(status_code=400, detail="Şifre en az bir sembol içermelidir (!@#$% vb.)")
 
 
 # ─── Login ────────────────────────────────────────────────
@@ -41,6 +55,23 @@ def get_me(current_user: User = Depends(get_current_user)):
     return current_user
 
 
+# ─── Change Password ─────────────────────────────────────
+
+@router.put("/change-password")
+def change_password(
+    data: ChangePasswordRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    if not verify_password(data.current_password, current_user.password_hash):
+        raise HTTPException(status_code=400, detail="Mevcut şifre hatalı")
+    _validate_password_strength(data.new_password)
+    current_user.password_hash = hash_password(data.new_password)
+    current_user.must_change_password = False
+    db.commit()
+    return {"detail": "Şifre başarıyla değiştirildi"}
+
+
 # ─── User CRUD (Admin Only) ─────────────────────────────
 
 @router.get("/users", response_model=List[UserResponse])
@@ -57,7 +88,8 @@ def create_user(
     db: Session = Depends(get_db),
     admin: User = Depends(require_admin)
 ):
-    # Check duplicates
+    if not data.email.endswith("@meb.gov.tr"):
+        raise HTTPException(status_code=400, detail="Sadece @meb.gov.tr uzantılı e-posta adresleri kabul edilir")
     if db.query(User).filter(User.username == data.username).first():
         raise HTTPException(status_code=400, detail="Bu kullanıcı adı zaten kullanılıyor")
     if db.query(User).filter(User.email == data.email).first():
@@ -66,9 +98,10 @@ def create_user(
     user = User(
         username=data.username,
         email=data.email,
-        password_hash=hash_password(data.password),
+        password_hash=hash_password("123456"),
         role=data.role,
-        is_active=True
+        is_active=True,
+        must_change_password=True,
     )
     db.add(user)
     db.commit()
@@ -88,6 +121,8 @@ def update_user(
         raise HTTPException(status_code=404, detail="Kullanıcı bulunamadı")
 
     if data.email is not None:
+        if not data.email.endswith("@meb.gov.tr"):
+            raise HTTPException(status_code=400, detail="Sadece @meb.gov.tr uzantılı e-posta adresleri kabul edilir")
         existing = db.query(User).filter(User.email == data.email, User.id != user_id).first()
         if existing:
             raise HTTPException(status_code=400, detail="Bu e-posta zaten kullanılıyor")

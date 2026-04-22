@@ -86,7 +86,10 @@ export default function LoginPage({ isDarkTheme, toggleTheme }) {
           </button>
         </form>
 
-        <p className="login-footer">İlk giriş: admin / admin123</p>
+        <div className="login-footer-note">
+          <strong>ℹ️ Bilgi:</strong> Sisteme giriş için kurumsal <strong>@meb.gov.tr</strong> e-posta adresiniz gereklidir.
+          İlk girişte şifreniz <strong>123456</strong> olarak tanımlanmıştır — giriş sonrası değiştirmeniz zorunludur.
+        </div>
       </div>
     </div>
   );

@@ -42,10 +42,16 @@ class UserResponse(BaseModel):
     email: str
     role: UserRole
     is_active: bool
+    must_change_password: bool = False
     created_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str = Field(min_length=8)
 
 
 # ─── Tags ─────────────────────────────────────────────────

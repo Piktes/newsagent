@@ -16,11 +16,13 @@ import UsersPage from './pages/UsersPage';
 import ScanLogsPage from './pages/ScanLogsPage';
 import QuotaPage from './pages/QuotaPage';
 import BreakingNewsPage from './pages/BreakingNewsPage';
+import ChangePasswordPage from './pages/ChangePasswordPage';
 
 function ProtectedRoute({ children, adminOnly = false }) {
   const { user, loading, isAdmin } = useAuth();
   if (loading) return <div className="loading-state"><div className="spinner large"></div></div>;
   if (!user) return <Navigate to="/login" />;
+  if (user.must_change_password) return <Navigate to="/change-password" />;
   if (adminOnly && !isAdmin) return <Navigate to="/" />;
   return children;
 }
@@ -141,6 +143,7 @@ export default function App() {
       <AuthProvider>
         <Routes>
           <Route path="/login" element={<LoginPage isDarkTheme={isDarkTheme} toggleTheme={toggleTheme} />} />
+          <Route path="/change-password" element={<ChangePasswordPage />} />
           <Route path="/*" element={<ProtectedRoute><AppLayout isDarkTheme={isDarkTheme} toggleTheme={toggleTheme} /></ProtectedRoute>} />
         </Routes>
       </AuthProvider>

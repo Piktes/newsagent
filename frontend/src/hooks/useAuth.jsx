@@ -36,10 +36,18 @@ export function AuthProvider({ children }) {
     setUser(null);
   };
 
+  const updateUser = (patch) => {
+    setUser(prev => {
+      const updated = { ...prev, ...patch };
+      localStorage.setItem('haberajani_user', JSON.stringify(updated));
+      return updated;
+    });
+  };
+
   const isAdmin = user?.role === 'super_admin';
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, isAdmin }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, updateUser, isAdmin }}>
       {children}
     </AuthContext.Provider>
   );
