@@ -276,6 +276,7 @@ def _scan_with_engine(db: Session, engine, tag: Tag, user_id: int, source: Optio
                 "type": "new_news",
                 "tag": tag.name,
                 "count": items_found,
+                "is_breaking": bool(tag.is_breaking),
             })
         except Exception:
             pass
@@ -319,15 +320,46 @@ def scan_all_users():
         db.close()
 
 
+def scan_breaking_tags():
+    """Scan breaking news tags that are due based on their scan_interval_minutes."""
+    db: Session = SessionLocal()
+    try:
+        from models import User
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        tags = db.query(Tag).filter(Tag.is_breaking == True).all()
+        for tag in tags:
+            interval = tag.scan_interval_minutes or 30
+            last = tag.last_breaking_scan
+            if last is None or (now - last).total_seconds() >= interval * 60:
+                user = db.query(User).filter(User.id == tag.user_id).first()
+                scan_for_user_tag(tag.user_id, tag.id, days_back=1)
+                # Update last scan time
+                db2: Session = SessionLocal()
+                try:
+                    t = db2.query(Tag).filter(Tag.id == tag.id).first()
+                    if t:
+                        t.last_breaking_scan = now
+                        db2.commit()
+                finally:
+                    db2.close()
+    except Exception as e:
+        print(f"[Scheduler] Son Dakika tarama hatası: {e}")
+    finally:
+        db.close()
+
+
 def start_scheduler():
-    """Start the APScheduler with configured intervals."""
-    # Scheduler disabled — uncomment to re-enable hourly scanning
-    # from datetime import datetime, timedelta, timezone
-    # scheduler.add_job(scan_all_users, 'interval', hours=1, id='hourly_scan', replace_existing=True, max_instances=1)
-    # run_at = datetime.now(timezone.utc) + timedelta(seconds=30)
-    # scheduler.add_job(scan_all_users, 'date', run_date=run_at, id='initial_scan', replace_existing=True)
-    # scheduler.start()
-    print("[*] Scheduler devre disi (manuel tarama aktif)")
+    """Start APScheduler for breaking news tags only."""
+    scheduler.add_job(
+        scan_breaking_tags,
+        'interval',
+        minutes=1,
+        id='breaking_scan',
+        replace_existing=True,
+        max_instances=1
+    )
+    scheduler.start()
+    print("[*] Son Dakika scheduler başlatıldı (her dakika kontrol)")
 
 
 def stop_scheduler():

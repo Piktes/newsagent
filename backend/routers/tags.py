@@ -26,7 +26,6 @@ def list_tags(
 @router.post("/", response_model=TagResponse, status_code=201)
 def create_tag(
     data: TagCreate,
-    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -45,7 +44,6 @@ def create_tag(
     db.add(tag)
     db.commit()
     db.refresh(tag)
-    background_tasks.add_task(scan_for_user_tag, current_user.id, tag.id)
     return tag
 
 
@@ -66,6 +64,10 @@ def update_tag(
         tag.color = data.color
     if data.language is not None:
         tag.language = data.language
+    if data.is_breaking is not None:
+        tag.is_breaking = data.is_breaking
+    if data.scan_interval_minutes is not None:
+        tag.scan_interval_minutes = data.scan_interval_minutes
 
     db.commit()
     db.refresh(tag)

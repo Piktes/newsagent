@@ -73,6 +73,9 @@ class Tag(Base):
     name = Column(String(100), nullable=False)
     color = Column(String(7), default="#3B82F6")  # hex color
     language = Column(SqlEnum(Language), default=Language.BOTH)
+    is_breaking = Column(Boolean, default=False)
+    scan_interval_minutes = Column(Integer, default=30)
+    last_breaking_scan = Column(DateTime, nullable=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 

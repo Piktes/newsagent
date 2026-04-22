@@ -15,6 +15,7 @@ import AdminPage from './pages/AdminPage';
 import UsersPage from './pages/UsersPage';
 import ScanLogsPage from './pages/ScanLogsPage';
 import QuotaPage from './pages/QuotaPage';
+import BreakingNewsPage from './pages/BreakingNewsPage';
 
 function ProtectedRoute({ children, adminOnly = false }) {
   const { user, loading, isAdmin } = useAuth();
@@ -47,6 +48,12 @@ function AppLayout({ isDarkTheme, toggleTheme }) {
           } else if (msg.type === 'scan_finished') {
             setScanToast(prev => prev ? { ...prev, finished: true, completed: prev.total } : null);
             setTimeout(() => setScanToast(null), 3000);
+          } else if (msg.type === 'new_news' && 'Notification' in window && Notification.permission === 'granted') {
+            const isBreaking = msg.is_breaking;
+            new Notification(
+              isBreaking ? `🔴 SON DAKİKA: ${msg.tag}` : `Yeni Haberler: ${msg.tag}`,
+              { body: `${msg.count} yeni haber bulundu`, icon: '/favicon.ico' }
+            );
           }
         } catch {}
       };
@@ -94,6 +101,7 @@ function AppLayout({ isDarkTheme, toggleTheme }) {
         <Routes>
           <Route path="/" element={<DashboardPage />} />
           <Route path="/today" element={<DashboardPage />} />
+          <Route path="/son-dakika" element={<BreakingNewsPage />} />
           <Route path="/favorites" element={<FavoritesPage />} />
           <Route path="/tags" element={<TagsPage />} />
           <Route path="/sources" element={<SourcesPage />} />

@@ -54,12 +54,16 @@ class TagCreate(BaseModel):
     name: str = Field(min_length=1, max_length=100)
     color: str = "#3B82F6"
     language: Language = Language.BOTH
+    is_breaking: bool = False
+    scan_interval_minutes: int = 30
 
 
 class TagUpdate(BaseModel):
     name: Optional[str] = None
     color: Optional[str] = None
     language: Optional[Language] = None
+    is_breaking: Optional[bool] = None
+    scan_interval_minutes: Optional[int] = None
 
 
 class TagResponse(BaseModel):
@@ -67,6 +71,9 @@ class TagResponse(BaseModel):
     name: str
     color: str
     language: Language
+    is_breaking: bool
+    scan_interval_minutes: int
+    last_breaking_scan: Optional[datetime] = None
     user_id: int
     created_at: Optional[datetime] = None
 

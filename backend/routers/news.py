@@ -109,6 +109,7 @@ def list_news(
     is_favorite: Optional[bool] = None,
     is_read: Optional[bool] = None,
     show_hidden: bool = False,
+    breaking_only: bool = False,
     sentiment: Optional[str] = Query(None, regex="^(positive|neutral|negative)$"),
     query: Optional[str] = None,
     date_from: Optional[datetime] = None,
@@ -119,10 +120,26 @@ def list_news(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    from models import Tag as TagModel
     q = db.query(NewsItem).filter(
         NewsItem.user_id == current_user.id,
         NewsItem.is_hidden == (True if show_hidden else False)
     )
+
+    if breaking_only:
+        breaking_tag_ids = [
+            t.id for t in db.query(TagModel).filter(
+                TagModel.user_id == current_user.id,
+                TagModel.is_breaking == True
+            ).all()
+        ]
+        if not breaking_tag_ids:
+            return []
+        q = q.filter(NewsItem.tag_id.in_(breaking_tag_ids))
+        # Son 24 saat
+        from datetime import timedelta
+        cutoff = datetime.utcnow() - timedelta(hours=24)
+        q = q.filter(NewsItem.published_at.isnot(None), NewsItem.published_at >= cutoff)
 
     if tag_id:
         q = q.filter(NewsItem.tag_id == tag_id)
@@ -141,7 +158,8 @@ def list_news(
         q = q.filter(or_(
             NewsItem.title.ilike(search),
             NewsItem.summary.ilike(search),
-            NewsItem.user_note.ilike(search)
+            NewsItem.user_note.ilike(search),
+            NewsItem.source_name.ilike(search),
         ))
     if date_from:
         df = date_from.replace(tzinfo=None) if date_from.tzinfo else date_from
@@ -176,6 +194,7 @@ def news_count(
     date_from: Optional[str] = None,
     date_to: Optional[str] = None,
     source_types: Optional[List[SourceType]] = Query(None),
+    breaking_only: bool = False,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -185,6 +204,22 @@ def news_count(
         NewsItem.user_id == current_user.id,
         NewsItem.is_hidden == False
     )
+    if breaking_only:
+        from models import Tag as TagModel
+        from datetime import timedelta
+        breaking_tag_ids = [
+            t.id for t in db.query(TagModel).filter(
+                TagModel.user_id == current_user.id,
+                TagModel.is_breaking == True
+            ).all()
+        ]
+        if breaking_tag_ids:
+            base = base.filter(NewsItem.tag_id.in_(breaking_tag_ids))
+            cutoff = datetime.utcnow() - timedelta(hours=24)
+            base = base.filter(NewsItem.published_at.isnot(None), NewsItem.published_at >= cutoff)
+        else:
+            return {"total": 0, "unread": 0, "favorites": 0, "today": 0, "today_unread": 0,
+                    "by_source": {}, "sentiment": {"positive": 0, "neutral": 0, "negative": 0, "unknown": 0}}
     if tag_id:
         base = base.filter(NewsItem.tag_id == tag_id)
     if date_from:

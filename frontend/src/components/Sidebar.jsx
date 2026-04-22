@@ -1,9 +1,7 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { tagsApi, newsApi } from '../services/api';
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000/api';
-const WS_BASE = API_BASE.replace(/^http/, 'ws').replace('/api', '');
 import {
   Newspaper, Calendar, Star, Tags, Bell, EyeOff,
   BarChart, Users, FileText, Zap, LogOut, Sun, Moon, Gauge
@@ -12,6 +10,7 @@ import {
 const NAV_ITEMS = [
   { path: '/', icon: <Newspaper size={18} />, label: 'Haberler', key: 'news' },
   { path: '/today', icon: <Calendar size={18} />, label: 'Bugün Ne Oldu', key: 'today' },
+  { path: '/son-dakika', icon: <Zap size={18} style={{ color: '#ef4444' }} />, label: 'Son Dakika', key: 'breaking' },
   { path: '/favorites', icon: <Star size={18} />, label: 'Favoriler', key: 'favs' },
   { path: '/hidden', icon: <EyeOff size={18} />, label: 'Akıştan Çıkarılanlar', key: 'hidden' },
   { path: '/tags', icon: <Tags size={18} />, label: 'Etiketler', key: 'tags' },
@@ -29,39 +28,27 @@ export default function Sidebar({ collapsed, onToggle, isDarkTheme, toggleTheme 
   const { user, logout, isAdmin } = useAuth();
   const [tags, setTags] = useState([]);
   const [todayUnread, setTodayUnread] = useState(0);
+  const [breakingUnread, setBreakingUnread] = useState(0);
   const location = useLocation();
-  const wsRef = useRef(null);
 
   useEffect(() => {
     tagsApi.list().then(r => setTags(r.data)).catch(() => {});
 
-    const fetchCount = async () => {
+    const fetchCounts = async () => {
       try {
-        const { data } = await newsApi.count();
-        if (data.today_unread !== undefined) setTodayUnread(data.today_unread);
+        const s = new Date(); s.setHours(0, 0, 0, 0);
+        const e = new Date(); e.setHours(23, 59, 59, 999);
+        const [todayRes, breakingRes] = await Promise.all([
+          newsApi.count({ date_from: s.toISOString(), date_to: e.toISOString() }),
+          newsApi.count({ breaking_only: true }),
+        ]);
+        setTodayUnread(todayRes.data.total ?? 0);
+        setBreakingUnread(breakingRes.data.unread ?? 0);
       } catch (e) {}
     };
-    fetchCount();
+    fetchCounts();
   }, [location.pathname]);
 
-  // WebSocket for real-time browser notifications
-  useEffect(() => {
-    if (!user?.id) return;
-    const ws = new WebSocket(`${WS_BASE}/ws/${user.id}`);
-    wsRef.current = ws;
-    ws.onmessage = (event) => {
-      try {
-        const msg = JSON.parse(event.data);
-        if (msg.type === 'new_news' && 'Notification' in window && Notification.permission === 'granted') {
-          new Notification(`Yeni Haberler: ${msg.tag}`, {
-            body: `${msg.count} yeni haber bulundu`,
-            icon: '/favicon.ico',
-          });
-        }
-      } catch (_) {}
-    };
-    return () => { ws.close(); };
-  }, [user?.id]);
 
   return (
     <aside className={`sidebar ${collapsed ? 'collapsed' : ''}`}>
@@ -118,6 +105,12 @@ export default function Sidebar({ collapsed, onToggle, isDarkTheme, toggleTheme 
                   {item.key === 'today' && todayUnread > 0 && ` (${todayUnread})`}
                 </span>
               )}
+              {!collapsed && item.key === 'breaking' && breakingUnread > 0 && (
+                <span className="breaking-nav-badge">{breakingUnread}</span>
+              )}
+              {collapsed && item.key === 'breaking' && breakingUnread > 0 && (
+                <span className="breaking-nav-dot" />
+              )}
             </NavLink>
           ))}
         </div>
@@ -141,7 +134,10 @@ export default function Sidebar({ collapsed, onToggle, isDarkTheme, toggleTheme 
                       boxShadow: isTagActive ? `0 0 0 2px var(--bg-primary), 0 0 0 4px ${tag.color}` : 'none',
                     }}
                   />
-                  <span className="nav-label">{tag.name}</span>
+                  <span className="nav-label">
+                    {tag.name}
+                    {tag.is_breaking && <Zap size={10} style={{ color: '#ef4444', marginLeft: 3, flexShrink: 0 }} />}
+                  </span>
                   {isTagActive && (
                     <span style={{
                       marginLeft: 'auto',

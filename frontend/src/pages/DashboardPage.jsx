@@ -3,7 +3,7 @@ import { useSearchParams, useLocation } from 'react-router-dom';
 import {
   TrendingUp, Minus, TrendingDown, Activity, Newspaper, Calendar,
   RefreshCw, FileDown, Search, Rss, Globe, Zap,
-  X, Filter, Check, ChevronDown, BellRing,
+  X, Check, BellRing,
   ArrowUpDown, Tag, BarChart2, SlidersHorizontal,
 } from 'lucide-react';
 import { FaYoutube, FaXTwitter } from 'react-icons/fa6';
@@ -98,6 +98,18 @@ function PdfPopup({ tags, onConfirm, onClose }) {
   );
 }
 
+const PAGE_SIZE = 20;
+
+function getPageNumbers(current, total) {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+  const pages = [1];
+  if (current > 3) pages.push('…');
+  for (let i = Math.max(2, current - 1); i <= Math.min(total - 1, current + 1); i++) pages.push(i);
+  if (current < total - 2) pages.push('…');
+  pages.push(total);
+  return pages;
+}
+
 /* ── Ana Bileşen ──────────────────────────────────────────────────── */
 export default function DashboardPage() {
   const [news, setNews] = useState([]);
@@ -107,6 +119,7 @@ export default function DashboardPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const location = useLocation();
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
   const [page, setPage] = useState(1);
   const [sortOrder, setSortOrder] = useState('desc');
   const [selectedTagId, setSelectedTagId] = useState('');
@@ -129,9 +142,6 @@ export default function DashboardPage() {
   const lastKnownIdRef = useRef(0);
   const [lastFetchedAt, setLastFetchedAt] = useState(null);
 
-  // Tarama aralığı (gün)
-  const [scanDays, setScanDays] = useState(30);
-
   const isNewItem = (item) =>
     isToday && !item.is_read && item.published_at &&
     (Date.now() - new Date(item.published_at).getTime()) < 60 * 60 * 1000;
@@ -144,9 +154,9 @@ export default function DashboardPage() {
     try {
       const platforms = sourcePlatforms || selectedPlatforms;
       const allPlatforms = platforms.length === SOURCE_OPTIONS.length;
-      const params = { page, page_size: 20, sort_order: sortOrder };
+      const params = { page, page_size: PAGE_SIZE, sort_order: sortOrder };
       if (tagFilter) params.tag_id = tagFilter;
-      if (searchQuery) params.query = searchQuery;
+      if (debouncedQuery) params.query = debouncedQuery;
       if (selectedSentiment) params.sentiment = selectedSentiment;
       if (!allPlatforms) params.source_types = platforms;
 
@@ -174,7 +184,7 @@ export default function DashboardPage() {
       console.error(err);
     }
     setLoading(false);
-  }, [page, sortOrder, tagFilter, searchQuery, selectedSentiment, selectedPlatforms, isToday, dateFrom, dateTo]);
+  }, [page, sortOrder, tagFilter, debouncedQuery, selectedSentiment, selectedPlatforms, isToday, dateFrom, dateTo]);
 
   const fetchCounts = useCallback(async () => {
     try {
@@ -196,18 +206,28 @@ export default function DashboardPage() {
     } catch (err) { console.error(err); }
   }, [tagFilter, isToday, dateFrom, dateTo, selectedPlatforms]);
 
-  // Initial load
+  // Initial load (filter changes)
   useEffect(() => {
     fetchNews();
     fetchCounts();
     tagsApi.list().then(r => setTags(r.data)).catch(() => {});
-  }, [tagFilter, page, sortOrder, selectedSentiment, isToday, dateFrom, dateTo, selectedPlatforms]);
+  }, [tagFilter, page, sortOrder, debouncedQuery, selectedSentiment, isToday, dateFrom, dateTo, selectedPlatforms]);
 
-  // Sync URL tag param
+  // Debounce searchQuery → debouncedQuery
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedQuery(searchQuery);
+      setPage(1);
+    }, searchQuery === '' ? 0 : 400);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // Sync URL tag param; clear state tag when route changes
   useEffect(() => {
     const urlTag = searchParams.get('tag');
     if (urlTag) setSelectedTagId(urlTag);
-  }, [searchParams]);
+    else setSelectedTagId('');
+  }, [location.pathname, searchParams]);
 
   // Poll for new news every 30 seconds
   useEffect(() => {
@@ -241,25 +261,43 @@ export default function DashboardPage() {
     return () => clearInterval(interval);
   }, [tagFilter, isToday]);
 
-  const handleSearch = async (e) => {
+  const handleSearch = (e) => {
     e?.preventDefault();
+    setDebouncedQuery(searchQuery);
     setPage(1);
-    setShowPlatformPopup(true);
   };
 
-  const handlePlatformConfirm = async (platforms) => {
+  const handleFetchNews = async (platforms) => {
     setSelectedPlatforms(platforms);
     setShowPlatformPopup(false);
-    setPage(1);
-    await fetchNews(platforms);
-    if (!scanning) {
-      setScanning(true);
+    setScanning(true);
+    const preScanFetchedAt = lastFetchedAt;
+    try {
+      if (tagFilter && tagFilter !== '') await tagsApi.scan(tagFilter, 30);
+      else await tagsApi.scanAll(30);
+    } catch (e) {}
+    // Poll /latest-id until last_fetched_at changes → scan complete
+    let attempts = 0;
+    const pollScanComplete = async () => {
+      attempts++;
       try {
-        if (tagFilter && tagFilter !== '') await tagsApi.scan(tagFilter, scanDays);
-        else await tagsApi.scanAll(scanDays);
+        const idParams = {};
+        if (tagFilter) idParams.tag_id = tagFilter;
+        const idRes = await newsApi.latestId(idParams);
+        const newFetchedAt = idRes.data.last_fetched_at;
+        if (newFetchedAt && newFetchedAt !== preScanFetchedAt) {
+          setLastFetchedAt(newFetchedAt);
+          lastKnownIdRef.current = idRes.data.latest_id || lastKnownIdRef.current;
+          await fetchNews(platforms);
+          fetchCounts();
+          setScanning(false);
+          return;
+        }
       } catch (e) {}
-      setTimeout(() => setScanning(false), 2000);
-    }
+      if (attempts < 12) setTimeout(pollScanComplete, 5000);
+      else setScanning(false);
+    };
+    setTimeout(pollScanComplete, 8000);
   };
 
   const handleNewNewsBanner = async () => {
@@ -299,6 +337,8 @@ export default function DashboardPage() {
     setDateFrom('');
     setDateTo('');
     setSelectedPlatforms(SOURCE_OPTIONS.map(s => s.value));
+    setSearchQuery('');
+    setDebouncedQuery('');
     setPage(1);
   };
 
@@ -436,6 +476,16 @@ export default function DashboardPage() {
         </div>
       )}
 
+      {/* Haberleri Çek */}
+      <button
+        className="btn-fetch"
+        onClick={() => setShowPlatformPopup(true)}
+        disabled={scanning}
+      >
+        <RefreshCw size={13} className={scanning ? 'spin' : ''} />
+        {scanning ? 'Çekiliyor...' : 'Haberleri Çek'}
+      </button>
+
       {/* Search */}
       <form className="search-bar" onSubmit={handleSearch}>
         <input
@@ -444,23 +494,9 @@ export default function DashboardPage() {
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
-        <select
-          className="filter-select"
-          value={scanDays}
-          onChange={e => setScanDays(Number(e.target.value))}
-          onClick={e => e.stopPropagation()}
-          style={{ flexShrink: 0 }}
-          title="Tarama aralığı (gün geriye)"
-        >
-          <option value={7}>7 gün</option>
-          <option value={30}>30 gün</option>
-          <option value={60}>60 gün</option>
-          <option value={90}>90 gün</option>
-        </select>
-        <button type="submit" className="btn btn-primary" disabled={scanning} style={{ gap: '0.375rem' }}>
-          {scanning ? <RefreshCw size={15} className="spin" /> : <Search size={15} />}
-          {scanning ? 'Aranıyor...' : 'Ara'}
-          <ChevronDown size={13} style={{ opacity: 0.7 }} />
+        <button type="submit" className="btn-search">
+          <Search size={14} />
+          Ara
         </button>
       </form>
 
@@ -586,19 +622,34 @@ export default function DashboardPage() {
       </div>
 
       {/* Pagination */}
-      {news.length > 0 && (
-        <div className="pagination">
-          <button className="btn btn-outline" disabled={page === 1} onClick={() => setPage(p => p - 1)}>← Önceki</button>
-          <span className="page-info">Sayfa {page}</span>
-          <button className="btn btn-outline" disabled={news.length < 20} onClick={() => setPage(p => p + 1)}>Sonraki →</button>
-        </div>
-      )}
+      {counts.total > 0 && (() => {
+        const totalPages = Math.ceil(counts.total / PAGE_SIZE);
+        const from = (page - 1) * PAGE_SIZE + 1;
+        const to = Math.min(page * PAGE_SIZE, counts.total);
+        const pageNums = getPageNumbers(page, totalPages);
+        return (
+          <div className="pagination">
+            <span className="page-info">{from}–{to} / {counts.total} sonuç</span>
+            <div className="pagination-controls">
+              <button className="pg-btn" disabled={page === 1} onClick={() => setPage(1)} title="İlk sayfa">«</button>
+              <button className="pg-btn" disabled={page === 1} onClick={() => setPage(p => p - 1)} title="Önceki">‹</button>
+              {pageNums.map((n, i) =>
+                n === '…'
+                  ? <span key={`e${i}`} className="pg-ellipsis">…</span>
+                  : <button key={n} className={`pg-btn ${n === page ? 'active' : ''}`} onClick={() => setPage(n)}>{n}</button>
+              )}
+              <button className="pg-btn" disabled={page === totalPages} onClick={() => setPage(p => p + 1)} title="Sonraki">›</button>
+              <button className="pg-btn" disabled={page === totalPages} onClick={() => setPage(totalPages)} title="Son sayfa">»</button>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Popups */}
       {showPlatformPopup && (
         <PlatformPopup
           selected={selectedPlatforms}
-          onConfirm={handlePlatformConfirm}
+          onConfirm={handleFetchNews}
           onClose={() => setShowPlatformPopup(false)}
         />
       )}
