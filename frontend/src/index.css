@@ -591,29 +591,37 @@ body:not(.light-theme) .nav-item.active {
 }
 
 .input-eye-wrap {
-  position: relative;
   display: flex;
   align-items: center;
+  background: var(--bg-input);
+  box-shadow: var(--ring);
+  border-radius: var(--radius-sm);
+  transition: var(--transition);
+}
+
+.input-eye-wrap:focus-within {
+  box-shadow: var(--ring-focus);
 }
 
 .input-eye-wrap input {
-  width: 100%;
-  padding-right: 2.5rem;
+  flex: 1;
+  min-width: 0;
+  background: transparent !important;
+  box-shadow: none !important;
+  border-radius: 0;
+  outline: none;
 }
 
 .eye-btn {
-  position: absolute;
-  right: 0.625rem;
-  z-index: 2;
+  flex-shrink: 0;
+  padding: 0 0.625rem;
   background: none;
   border: none;
   cursor: pointer;
   color: #6b7280;
   display: flex;
   align-items: center;
-  padding: 0.25rem;
   line-height: 1;
-  flex-shrink: 0;
 }
 
 .eye-btn:hover { color: #111827; }
