@@ -465,53 +465,58 @@ body:not(.light-theme) .nav-item.active {
   justify-content: center;
   position: relative;
   overflow: hidden;
+  background: linear-gradient(
+    135deg,
+    #0f0c29,
+    #1a1a4e,
+    #0d2137,
+    #0a3d2b,
+    #1a1a4e,
+    #0f0c29
+  );
+  background-size: 400% 400%;
+  animation: gradient-wave 12s ease infinite;
 }
 
-.login-bg { position: absolute; inset: 0; z-index: 0; }
-
-.login-orb {
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(80px);
-  animation: float 10s ease-in-out infinite;
+body.light-theme .login-page {
+  background: linear-gradient(
+    135deg,
+    #e0eaff,
+    #f0e6ff,
+    #dff4f0,
+    #fef3e2,
+    #e8f4fd,
+    #e0eaff
+  );
+  background-size: 400% 400%;
+  animation: gradient-wave 12s ease infinite;
 }
 
-.login-orb-1 {
-  width: 320px; height: 320px;
-  background: var(--accent);
-  opacity: 0.08;
-  top: -80px; right: -80px;
+@keyframes gradient-wave {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
 }
 
-.login-orb-2 {
-  width: 260px; height: 260px;
-  background: #10b981;
-  opacity: 0.06;
-  bottom: -60px; left: -60px;
-  animation-delay: -4s;
-}
-
-.login-orb-3 {
-  width: 180px; height: 180px;
-  background: #f59e0b;
-  opacity: 0.05;
-  top: 50%; left: 50%;
-  animation-delay: -7s;
-}
-
-@keyframes float {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  50% { transform: translate(20px, -20px) scale(1.05); }
-}
+.login-bg { display: none; }
 
 .login-card {
   position: relative;
   z-index: 1;
   width: 400px;
   padding: 2.5rem;
-  background: var(--bg-card);
-  box-shadow: var(--shadow-card);
+  background: rgba(15, 18, 30, 0.55);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.4);
   border-radius: var(--radius-lg);
+}
+
+body.light-theme .login-card {
+  background: rgba(255, 255, 255, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.12);
 }
 
 .login-logo {
