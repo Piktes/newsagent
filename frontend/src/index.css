@@ -1294,6 +1294,15 @@ body.light-theme .note-btn.has-note { color: var(--accent); }
   white-space: nowrap;
 }
 
+.nav-item-breaking-highlight {
+  box-shadow: inset 0 0 0 1.5px #ef4444;
+  color: #ef4444 !important;
+}
+
+body:not(.light-theme) .nav-item-breaking-highlight {
+  box-shadow: inset 0 0 0 1.5px #ef4444;
+}
+
 .breaking-nav-badge {
   margin-left: auto;
   min-width: 18px;

@@ -8,9 +8,9 @@ import {
 } from 'lucide-react';
 
 const NAV_ITEMS = [
+  { path: '/son-dakika', icon: <Zap size={18} style={{ color: '#ef4444' }} />, label: 'Son Dakika', key: 'breaking' },
   { path: '/', icon: <Newspaper size={18} />, label: 'Haberler', key: 'news' },
   { path: '/today', icon: <Calendar size={18} />, label: 'Bugün Ne Oldu', key: 'today' },
-  { path: '/son-dakika', icon: <Zap size={18} style={{ color: '#ef4444' }} />, label: 'Son Dakika', key: 'breaking' },
   { path: '/favorites', icon: <Star size={18} />, label: 'Favoriler', key: 'favs' },
   { path: '/hidden', icon: <EyeOff size={18} />, label: 'Akıştan Çıkarılanlar', key: 'hidden' },
   { path: '/tags', icon: <Tags size={18} />, label: 'Etiketler', key: 'tags' },
@@ -95,7 +95,7 @@ export default function Sidebar({ collapsed, onToggle, isDarkTheme, toggleTheme 
               key={item.path}
               to={item.path}
               end={item.path === '/'}
-              className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+              className={({ isActive }) => `nav-item ${isActive ? 'active' : ''} ${item.key === 'breaking' && breakingUnread > 0 && !isActive ? 'nav-item-breaking-highlight' : ''}`}
               title={item.label}
             >
               <span className="nav-icon">{item.icon}</span>

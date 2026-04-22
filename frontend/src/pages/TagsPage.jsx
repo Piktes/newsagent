@@ -153,7 +153,7 @@ export default function TagsPage() {
           </div>
 
           {/* Son Dakika */}
-          <div className="form-group">
+          <div className="form-group" style={{ marginTop: '0.75rem' }}>
             <label
               style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', userSelect: 'none' }}
             >
