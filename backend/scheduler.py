@@ -215,8 +215,8 @@ def _scan_with_engine(db: Session, engine, tag: Tag, user_id: int, source: Optio
                     s_label, s_score = analyze_sentiment(sentiment_text)
 
                     news_item = NewsItem(
-                        title=r.title,
-                        summary=r.summary,
+                        title=(r.title or '')[:500],
+                        summary=(r.summary or '')[:4000],
                         url=r.url,
                         url_hash=url_h,
                         source_name=r.source_name,
