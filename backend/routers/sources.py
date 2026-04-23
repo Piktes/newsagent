@@ -2,7 +2,7 @@
 Haberajani - Sources Router
 News source CRUD with API quota tracking.
 """
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import List
 from datetime import datetime, timezone
@@ -122,11 +122,97 @@ def get_quotas(
     # Auto-reset daily quotas
     now = datetime.now(timezone.utc)
     for q in quotas:
-        if q.last_reset and (now - q.last_reset).days >= 1:
-            q.daily_used = 0
-            q.last_reset = now
+        if q.last_reset:
+            last_reset_aware = q.last_reset if q.last_reset.tzinfo else q.last_reset.replace(tzinfo=timezone.utc)
+            if (now - last_reset_aware).days >= 1:
+                q.daily_used = 0
+                q.last_reset = now
     db.commit()
     return quotas
+
+
+# ─── Twitter Account Verify ──────────────────────────────
+
+@router.get("/twitter/verify")
+def verify_twitter_account(
+    handle: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Check if a Twitter/X account is public and accessible."""
+    from engines.twitter_engine import TwitterEngine
+    engine = TwitterEngine()
+    try:
+        return engine.verify_account(handle)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+# ─── YouTube Channel Verify ──────────────────────────────
+
+@router.get("/youtube/verify")
+def verify_youtube_channel(
+    url: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Check if a YouTube channel is accessible via RSS (no API key needed)."""
+    from engines.youtube_engine import YoutubeEngine
+    engine = YoutubeEngine()
+    try:
+        result = engine.verify_channel(url)
+        if not result.get('exists'):
+            raise HTTPException(status_code=400, detail=result.get('error', 'Kanal doğrulanamadı'))
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+# ─── Twitter Trends ──────────────────────────────────────
+
+@router.get("/twitter/trends")
+def get_twitter_trends(
+    woeid: int = Query(23424969, description="WOEID (23424969=Türkiye, 1=Dünya geneli)"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Current trending topics for a location via X API v2.
+    Also marks which of the user's tags match a trend.
+    Requires X API Basic tier.
+    """
+    from engines.twitter_engine import TwitterEngine
+    from models import Tag
+    engine = TwitterEngine()
+    raw = engine.get_trends(woeid)
+
+    if raw is None:
+        raw = []
+
+    # Normalize helper (reuse same logic as engine)
+    def _norm(s):
+        return (s.lower()
+                .replace("ı", "i").replace("ş", "s").replace("ç", "c")
+                .replace("ğ", "g").replace("ö", "o").replace("ü", "u")
+                .replace("#", "").replace(" ", ""))
+
+    user_tags = db.query(Tag).filter(Tag.user_id == current_user.id).all()
+
+    trends = []
+    for trend in raw:
+        name = trend.get("trend_name", "")
+        name_norm = _norm(name)
+        matching = [
+            t.name for t in user_tags
+            if _norm(t.name) in name_norm or name_norm in _norm(t.name)
+        ]
+        trends.append({
+            "trend_name": name,
+            "tweet_count": trend.get("tweet_count"),
+            "matching_tags": matching,
+        })
+
+    return {"trends": trends, "woeid": woeid, "count": len(trends)}
 
 
 def _get_default_limit(source_type: SourceType) -> int:

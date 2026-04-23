@@ -17,6 +17,9 @@ import ScanLogsPage from './pages/ScanLogsPage';
 import QuotaPage from './pages/QuotaPage';
 import BreakingNewsPage from './pages/BreakingNewsPage';
 import ChangePasswordPage from './pages/ChangePasswordPage';
+import FeedbackPage from './pages/FeedbackPage';
+import AdminFeedbackPage from './pages/AdminFeedbackPage';
+import AdminErrorLogsPage from './pages/AdminErrorLogsPage';
 
 function ProtectedRoute({ children, adminOnly = false }) {
   const { user, loading, isAdmin } = useAuth();
@@ -110,10 +113,13 @@ function AppLayout({ isDarkTheme, toggleTheme }) {
           <Route path="/notifications" element={<NotificationsPage />} />
           <Route path="/hidden" element={<HiddenNewsPage />} />
           <Route path="/lists/:id" element={<ListDetailPage />} />
+          <Route path="/feedback" element={<FeedbackPage />} />
           <Route path="/admin" element={<ProtectedRoute adminOnly><AdminPage /></ProtectedRoute>} />
           <Route path="/admin/users" element={<ProtectedRoute adminOnly><UsersPage /></ProtectedRoute>} />
           <Route path="/admin/logs" element={<ProtectedRoute adminOnly><ScanLogsPage /></ProtectedRoute>} />
           <Route path="/admin/quota" element={<ProtectedRoute adminOnly><QuotaPage /></ProtectedRoute>} />
+          <Route path="/admin/feedback" element={<ProtectedRoute adminOnly><AdminFeedbackPage /></ProtectedRoute>} />
+          <Route path="/admin/error-logs" element={<ProtectedRoute adminOnly><AdminErrorLogsPage /></ProtectedRoute>} />
         </Routes>
       </main>
     </div>

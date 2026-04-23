@@ -91,12 +91,10 @@ def get_latest_id(
                 if tag:
                     new_tags.append(tag.name)
 
-    # Son çekilme zamanı (tüm etiketler)
-    last_item = db.query(NewsItem).filter(
-        NewsItem.user_id == current_user.id,
-        NewsItem.is_hidden == False
-    ).order_by(desc(NewsItem.fetched_at)).first()
-    last_fetched_at = last_item.fetched_at.isoformat() if last_item and last_item.fetched_at else None
+    # Son çekilme zamanı — son ScanLog girişi (yeni haber eklenmemiş olsa bile güncellenir)
+    from models import ScanLog
+    last_log = db.query(ScanLog).order_by(desc(ScanLog.scanned_at)).first()
+    last_fetched_at = last_log.scanned_at.isoformat() if last_log and last_log.scanned_at else None
 
     return {"latest_id": latest_id, "total": total, "new_tags": new_tags, "last_fetched_at": last_fetched_at}
 
@@ -296,6 +294,33 @@ def get_news_item(
     return resp
 
 
+@router.put("/bulk/mark-read")
+def bulk_mark_read(
+    breaking_only: bool = False,
+    tag_id: Optional[int] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Mark all (optionally filtered) news as read."""
+    q = db.query(NewsItem).filter(
+        NewsItem.user_id == current_user.id,
+        NewsItem.is_read == False,
+        NewsItem.is_hidden == False,
+    )
+    if breaking_only:
+        from models import Tag as TagModel
+        breaking_ids = [t.id for t in db.query(TagModel).filter(
+            TagModel.user_id == current_user.id,
+            TagModel.is_breaking == True
+        ).all()]
+        q = q.filter(NewsItem.tag_id.in_(breaking_ids))
+    if tag_id:
+        q = q.filter(NewsItem.tag_id == tag_id)
+    count = q.update({NewsItem.is_read: True}, synchronize_session=False)
+    db.commit()
+    return {"marked_read": count}
+
+
 @router.put("/{news_id}/read")
 def toggle_read(
     news_id: int,
@@ -409,6 +434,7 @@ def export_pdf(
     tag_ids: Optional[List[int]] = Query(None),
     date_from: Optional[datetime] = None,
     date_to: Optional[datetime] = None,
+    is_breaking: bool = False,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -446,6 +472,18 @@ def export_pdf(
         NewsItem.user_id == current_user.id,
         NewsItem.is_hidden == False
     )
+    # If is_breaking, restrict to breaking tags only
+    if is_breaking:
+        from models import Tag as TagModel
+        breaking_tag_ids_all = [
+            t.id for t in db.query(TagModel).filter(
+                TagModel.user_id == current_user.id,
+                TagModel.is_breaking == True
+            ).all()
+        ]
+        if breaking_tag_ids_all:
+            q = q.filter(NewsItem.tag_id.in_(breaking_tag_ids_all))
+
     # Resolve effective tag filter (tag_ids list takes precedence)
     effective_tag_ids = tag_ids if tag_ids else ([tag_id] if tag_id else None)
     if effective_tag_ids:
@@ -457,11 +495,13 @@ def export_pdf(
     items = q.order_by(desc(NewsItem.published_at)).all()
 
     # Build tag name display
-    tag_name = "Tüm Etiketler"
-    if effective_tag_ids:
+    if is_breaking and not effective_tag_ids:
+        tag_name = "Son Dakika"
+    elif effective_tag_ids:
         tag_objs = db.query(Tag).filter(Tag.id.in_(effective_tag_ids)).all()
-        if tag_objs:
-            tag_name = ", ".join(t.name for t in tag_objs)
+        tag_name = ", ".join(t.name for t in tag_objs) if tag_objs else "Tüm Etiketler"
+    else:
+        tag_name = "Tüm Etiketler"
 
     # ── Stats ────────────────────────────────────────────────────────────────
     total = len(items)
@@ -681,6 +721,101 @@ def export_pdf(
     story.append(src_tbl)
     story.append(Spacer(1, 0.5 * cm))
 
+    # ── Twitter / X Analysis ─────────────────────────────────────────────────
+    twitter_items = [it for it in items if it.source_type and it.source_type.value == "twitter"]
+    if twitter_items:
+        story.append(Paragraph("Twitter / X Analizi", s_section))
+        story.append(HRFlowable(width=W, thickness=1, color=C_BORDER, spaceAfter=8))
+
+        C_X      = colors.HexColor("#1d9bf0")
+        C_X_DARK = colors.HexColor("#0f4c81")
+        C_X_BG   = colors.HexColor("#e8f4fd")
+        s_x_lbl  = style("xl", fontSize=8, fontName=_font_bold, textColor=C_X_DARK)
+        s_x_body = style("xb", fontSize=9, fontName=_font_reg, textColor=C_TEXT, leading=13)
+        s_x_meta = style("xm", fontSize=7.5, fontName=_font_reg, textColor=C_MUTED, leading=11)
+
+        trending_count = sum(1 for it in twitter_items if it.is_trending)
+
+        # KPI row: tweet count, trending, top RT, top like
+        top_rt   = max(twitter_items, key=lambda x: (x.retweet_count or 0))
+        top_like = max(twitter_items, key=lambda x: (x.like_count or 0))
+
+        x_kpi_data = [[
+            [Paragraph(str(len(twitter_items)), style("xkv", fontSize=18, fontName=_font_bold, textColor=C_X, leading=22, alignment=1)),
+             Paragraph("Tweet", style("xkl", fontSize=8, fontName=_font_reg, textColor=C_MUTED, leading=11, alignment=1))],
+            [Paragraph(str(top_rt.retweet_count or 0), style("xkv2", fontSize=18, fontName=_font_bold, textColor=colors.HexColor("#22c55e"), leading=22, alignment=1)),
+             Paragraph("En Yüksek RT", style("xkl2", fontSize=8, fontName=_font_reg, textColor=C_MUTED, leading=11, alignment=1))],
+            [Paragraph(str(top_like.like_count or 0), style("xkv3", fontSize=18, fontName=_font_bold, textColor=colors.HexColor("#ef4444"), leading=22, alignment=1)),
+             Paragraph("En Yüksek Beğeni", style("xkl3", fontSize=8, fontName=_font_reg, textColor=C_MUTED, leading=11, alignment=1))],
+            [Paragraph("TREND" if trending_count > 0 else "—", style("xkv4", fontSize=16, fontName=_font_bold, textColor=colors.HexColor("#ef4444") if trending_count > 0 else C_MUTED, leading=22, alignment=1)),
+             Paragraph("Trend Durumu", style("xkl4", fontSize=8, fontName=_font_reg, textColor=C_MUTED, leading=11, alignment=1))],
+        ]]
+        x_kpi_tbl = Table(x_kpi_data, colWidths=[W / 4] * 4)
+        x_kpi_tbl.setStyle(TableStyle([
+            ("BACKGROUND",    (0, 0), (-1, -1), C_X_BG),
+            ("VALIGN",        (0, 0), (-1, -1), "MIDDLE"),
+            ("ALIGN",         (0, 0), (-1, -1), "CENTER"),
+            ("TOPPADDING",    (0, 0), (-1, -1), 10),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 10),
+            ("LINEAFTER",     (0, 0), (2, 0), 0.5, C_BORDER),
+            ("BOX",           (0, 0), (-1, -1), 0.5, C_BORDER),
+        ]))
+        story.append(x_kpi_tbl)
+        story.append(Spacer(1, 0.35 * cm))
+
+        def x_tweet_card(label_text, it, label_color):
+            """Render a highlighted tweet card."""
+            if not it:
+                return
+            sname = pt(it.source_name or "")
+            date_s = it.published_at.strftime("%d.%m.%Y %H:%M") if it.published_at else "—"
+            rt_s   = f"🔁 {it.retweet_count:,}" if it.retweet_count else ""
+            lk_s   = f"❤ {it.like_count:,}"    if it.like_count    else ""
+            metrics = "   ".join(filter(None, [rt_s, lk_s]))
+            trend_s = "  🔥 TREND" if it.is_trending else ""
+
+            label_tbl = Table(
+                [[Paragraph(f'<font color="white" size="8"><b>{label_text}</b></font>',
+                            style("xl_hdr", fontSize=8, fontName=_font_bold, textColor=colors.white))]],
+                colWidths=[W]
+            )
+            label_tbl.setStyle(TableStyle([
+                ("BACKGROUND",    (0, 0), (-1, -1), colors.HexColor(label_color)),
+                ("LEFTPADDING",   (0, 0), (-1, -1), 8),
+                ("TOPPADDING",    (0, 0), (-1, -1), 4),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+            ]))
+            body_rows = [
+                Paragraph(pt(it.summary or it.title), s_x_body),
+                Paragraph(f"{sname}  ·  {date_s}{trend_s}", s_x_meta),
+            ]
+            if metrics:
+                body_rows.append(Paragraph(metrics, style("xmet", fontSize=8, fontName=_font_bold, textColor=C_X, leading=12)))
+            if it.url:
+                body_rows.append(Paragraph(
+                    f'<link href="{url_xml(it.url)}" color="#1d9bf0">Tweet\'e Git</link>',
+                    style("xlnk", fontSize=7.5, fontName=_font_reg, textColor=C_X, leading=12)
+                ))
+            body_tbl = Table([[r] for r in body_rows], colWidths=[W])
+            body_tbl.setStyle(TableStyle([
+                ("BACKGROUND",    (0, 0), (-1, -1), C_X_BG),
+                ("LEFTPADDING",   (0, 0), (-1, -1), 10),
+                ("RIGHTPADDING",  (0, 0), (-1, -1), 10),
+                ("TOPPADDING",    (0, 0), (-1, -1), 3),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+                ("BOX",           (0, 0), (-1, -1), 0.5, C_BORDER),
+            ]))
+            story.append(label_tbl)
+            story.append(body_tbl)
+            story.append(Spacer(1, 0.2 * cm))
+
+        # Show top RT and top like tweet (may be same tweet)
+        x_tweet_card("En Çok Repost Edilen Tweet", top_rt,   "#1d9bf0")
+        if top_like.id != top_rt.id:
+            x_tweet_card("En Çok Beğenilen Tweet",   top_like, "#ef4444")
+
+        story.append(Spacer(1, 0.2 * cm))
+
     # ── Article list grouped by tag ──────────────────────────────────────────
     story.append(Paragraph("Haber Listesi", s_section))
     story.append(HRFlowable(width=W, thickness=1.5, color=C_BLUE, spaceAfter=10))
@@ -706,14 +841,32 @@ def export_pdf(
 
     s_tag_header = style("tag_hdr", fontSize=11, fontName=_font_bold,
                          textColor=colors.white, leading=16)
+    s_tag_sources = style("tag_src", fontSize=7.5, fontName=_font_reg,
+                          textColor=colors.HexColor("#93c5fd"), leading=11)
 
     for tid, tag_items_list in tag_item_map.items():
         tag_obj = tag_obj_map.get(tid)
         tag_display = pt(tag_obj.name if tag_obj else "Etiket")
 
-        # Tag header band
+        # Collect distinct source names for this tag (preserve insertion order, max 6)
+        seen = {}
+        for it in tag_items_list:
+            sn = it.source_name or SRC_LABEL.get(
+                it.source_type.value if it.source_type else "", "")
+            sn_clean = pt(sn)
+            if sn_clean and sn_clean not in seen:
+                seen[sn_clean] = True
+            if len(seen) >= 6:
+                break
+        src_line = "  ·  ".join(seen.keys())
+
+        # Tag header band: name + source subtitle
+        hdr_cell_content = [Paragraph(tag_display, s_tag_header)]
+        if src_line:
+            hdr_cell_content.append(Paragraph(src_line, s_tag_sources))
+
         tag_hdr_tbl = Table(
-            [[Paragraph(tag_display, s_tag_header)]],
+            [[hdr_cell_content]],
             colWidths=[W]
         )
         tag_hdr_tbl.setStyle(TableStyle([
@@ -751,11 +904,24 @@ def export_pdf(
                 ("BOTTOMPADDING", (0, 0), (0, 0), 0),
             ]))
 
+            tw_metrics = ""
+            if it.source_type and it.source_type.value == "twitter":
+                parts = []
+                if it.retweet_count:
+                    parts.append(f"RT {it.retweet_count:,}")
+                if it.like_count:
+                    parts.append(f"Begen {it.like_count:,}")
+                if it.is_trending:
+                    parts.append("TREND")
+                if parts:
+                    tw_metrics = "  |  " + "  ·  ".join(parts)
+
             content_lines = [
                 Paragraph(pt(it.title), s_title),
                 Paragraph(
                     f'{source_name}  &bull;  {date_str}  &bull;  '
-                    f'<font color="{sent_hex}"><b>{sent_text}</b></font>',
+                    f'<font color="{sent_hex}"><b>{sent_text}</b></font>'
+                    f'{pt(tw_metrics)}',
                     s_small
                 ),
             ]
@@ -822,3 +988,25 @@ def export_pdf(
             "Content-Length": str(len(pdf_bytes)),
         }
     )
+
+
+# ─── Bulk Delete by Source Type ─────────────────────────────────────────────
+
+@router.delete("/bulk/by-source-type")
+def bulk_delete_by_source_type(
+    source_type: SourceType = Query(..., description="Silinecek haber kaynak tipi"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Belirtilen kaynak tipine ait tüm haberleri toplu siler.
+    Yalnızca oturum açmış kullanıcının haberleri silinir.
+    """
+    q = db.query(NewsItem).filter(
+        NewsItem.user_id == current_user.id,
+        NewsItem.source_type == source_type
+    )
+    deleted_count = q.count()
+    q.delete(synchronize_session=False)
+    db.commit()
+    return {"deleted": deleted_count, "source_type": source_type.value}

@@ -35,7 +35,7 @@ def _validate_password_strength(password: str):
 
 @router.post("/login", response_model=TokenResponse)
 def login(request: LoginRequest, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.username == request.username).first()
+    user = db.query(User).filter(User.email == request.username).first()
     if not user or not verify_password(request.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Kullanıcı adı veya şifre hatalı")
     if not user.is_active:
@@ -135,6 +135,23 @@ def update_user(
     db.commit()
     db.refresh(user)
     return user
+
+
+@router.post("/users/{user_id}/reset-password", status_code=200)
+def reset_user_password(
+    user_id: int,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_admin)
+):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Kullanıcı bulunamadı")
+    if user.role == UserRole.SUPER_ADMIN:
+        raise HTTPException(status_code=400, detail="Super Admin şifresi sıfırlanamaz")
+    user.password_hash = hash_password("123456")
+    user.must_change_password = True
+    db.commit()
+    return {"detail": "Şifre 123456 olarak sıfırlandı"}
 
 
 @router.delete("/users/{user_id}", status_code=204)

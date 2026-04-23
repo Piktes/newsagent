@@ -4,7 +4,8 @@ import { useAuth } from '../hooks/useAuth';
 import { tagsApi, newsApi } from '../services/api';
 import {
   Newspaper, Calendar, Star, Tags, Bell, EyeOff,
-  BarChart, Users, FileText, Zap, LogOut, Sun, Moon, Gauge
+  BarChart, Users, FileText, Zap, LogOut, Sun, Moon, Gauge, Radio,
+  MessageSquare, AlertTriangle, Wrench
 } from 'lucide-react';
 
 const NAV_ITEMS = [
@@ -14,7 +15,9 @@ const NAV_ITEMS = [
   { path: '/favorites', icon: <Star size={18} />, label: 'Favoriler', key: 'favs' },
   { path: '/hidden', icon: <EyeOff size={18} />, label: 'Akıştan Çıkarılanlar', key: 'hidden' },
   { path: '/tags', icon: <Tags size={18} />, label: 'Etiketler', key: 'tags' },
+  { path: '/sources', icon: <Radio size={18} />, label: 'Kaynaklar', key: 'sources' },
   { path: '/notifications', icon: <Bell size={18} />, label: 'Bildirimler', key: 'notifs' },
+  { path: '/feedback', icon: <MessageSquare size={18} />, label: 'Sorun Bildir', key: 'feedback', userOnly: true },
 ];
 
 const ADMIN_ITEMS = [
@@ -22,6 +25,8 @@ const ADMIN_ITEMS = [
   { path: '/admin/users', icon: <Users size={18} />, label: 'Kullanıcılar' },
   { path: '/admin/logs', icon: <FileText size={18} />, label: 'Tarama Logları' },
   { path: '/admin/quota', icon: <Gauge size={18} />, label: 'API Kotası' },
+  { path: '/admin/feedback', icon: <Wrench size={18} />, label: 'Sistem İyileştirmeleri' },
+  { path: '/admin/error-logs', icon: <AlertTriangle size={18} />, label: 'Hata Logları' },
 ];
 
 export default function Sidebar({ collapsed, onToggle, isDarkTheme, toggleTheme }) {
@@ -31,8 +36,10 @@ export default function Sidebar({ collapsed, onToggle, isDarkTheme, toggleTheme 
   const [breakingUnread, setBreakingUnread] = useState(0);
   const location = useLocation();
 
+  const refreshTags = () => tagsApi.list().then(r => setTags(r.data)).catch(() => {});
+
   useEffect(() => {
-    tagsApi.list().then(r => setTags(r.data)).catch(() => {});
+    refreshTags();
 
     const fetchCounts = async () => {
       try {
@@ -40,7 +47,8 @@ export default function Sidebar({ collapsed, onToggle, isDarkTheme, toggleTheme 
         const e = new Date(); e.setHours(23, 59, 59, 999);
         const [todayRes, breakingRes] = await Promise.all([
           newsApi.count({ date_from: s.toISOString(), date_to: e.toISOString() }),
-          newsApi.count({ breaking_only: true }),
+          // Badge: sadece bugünün okunmamış son dakika haberleri
+          newsApi.count({ breaking_only: true, date_from: s.toISOString(), date_to: e.toISOString() }),
         ]);
         setTodayUnread(todayRes.data.total ?? 0);
         setBreakingUnread(breakingRes.data.unread ?? 0);
@@ -48,6 +56,11 @@ export default function Sidebar({ collapsed, onToggle, isDarkTheme, toggleTheme 
     };
     fetchCounts();
   }, [location.pathname]);
+
+  useEffect(() => {
+    window.addEventListener('tags-changed', refreshTags);
+    return () => window.removeEventListener('tags-changed', refreshTags);
+  }, []);
 
 
   return (
@@ -90,7 +103,7 @@ export default function Sidebar({ collapsed, onToggle, isDarkTheme, toggleTheme 
       <nav className="sidebar-nav">
         <div className="nav-section">
           {!collapsed && <span className="nav-section-title">MENÜ</span>}
-          {NAV_ITEMS.map(item => (
+          {NAV_ITEMS.filter(item => !(item.userOnly && isAdmin)).map(item => (
             <NavLink
               key={item.path}
               to={item.path}

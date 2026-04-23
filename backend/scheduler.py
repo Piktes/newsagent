@@ -79,15 +79,15 @@ def normalize_turkish(text: str) -> str:
     return text.lower()
 
 
-def scan_for_user_tag(user_id: int, tag_id: int, source_id: Optional[int] = None, days_back: int = 30):
-    """Scan news for a specific user's tag from all their sources."""
+def scan_for_user_tag(user_id: int, tag_id: int, source_id: Optional[int] = None, days_back: int = 30) -> int:
+    """Scan news for a specific user's tag. Returns total items found."""
     db: Session = SessionLocal()
+    total_found = 0
     try:
         tag = db.query(Tag).filter(Tag.id == tag_id).first()
         if not tag:
-            return
+            return 0
 
-        # Get user's active sources
         from models import User
         user = db.query(User).filter(User.id == user_id).first()
         username = user.username if user else None
@@ -104,32 +104,51 @@ def scan_for_user_tag(user_id: int, tag_id: int, source_id: Optional[int] = None
                 NewsSource.is_active == True
             ).all()
 
+        # Check if tag is currently trending on Twitter/X (Turkey, WOEID=23424969)
+        tag_is_trending = False
+        try:
+            _tw_check = TwitterEngine()
+            tag_is_trending, trend_vol = _tw_check.is_trending_topic(tag.name)
+            if tag_is_trending:
+                print(f"[Scheduler] 🔥 '{tag.name}' Türkiye trendlerinde! ({trend_vol:,} tweet)")
+        except Exception:
+            pass
+
         # Always run NewsAPI.ai (EventRegistry) as system engine
         from config import ER_API_KEY
         if ER_API_KEY:
             er_engine = NewsApiEngine(api_key=ER_API_KEY, user_id=user_id, username=username)
-            _scan_with_engine(db, er_engine, tag, user_id, None, days_back=days_back)
+            total_found += _scan_with_engine(db, er_engine, tag, user_id, None, days_back=days_back, is_trending=tag_is_trending)
 
         # If no custom sources, also use free engines
         if not sources:
-            _scan_with_engine(db, RssEngine(), tag, user_id, None)
-            _scan_with_engine(db, YoutubeEngine(), tag, user_id, None)
-            _scan_with_engine(db, WebEngine(), tag, user_id, None)
-            _scan_with_engine(db, TwitterEngine(), tag, user_id, None)
-            return
+            total_found += _scan_with_engine(db, RssEngine(), tag, user_id, None, is_trending=tag_is_trending)
+            total_found += _scan_with_engine(db, YoutubeEngine(), tag, user_id, None, is_trending=tag_is_trending)
+            total_found += _scan_with_engine(db, WebEngine(), tag, user_id, None, is_trending=tag_is_trending)
+            total_found += _scan_with_engine(db, TwitterEngine(), tag, user_id, None, is_trending=tag_is_trending)
+        else:
+            for source in sources:
+                engine = _get_engine(source, user_id=user_id, username=username)
+                if engine:
+                    total_found += _scan_with_engine(db, engine, tag, user_id, source, is_trending=tag_is_trending)
 
-        for source in sources:
-            engine = _get_engine(source, user_id=user_id, username=username)
-            if engine:
-                _scan_with_engine(db, engine, tag, user_id, source)
+        # Son dakika olmayan etiketlerin son tarama zamanı ve haber sayısını güncelle
+        if not tag.is_breaking:
+            now_ts = datetime.now(timezone.utc).replace(tzinfo=None)
+            tag_to_update = db.query(Tag).filter(Tag.id == tag_id).first()
+            if tag_to_update:
+                tag_to_update.last_breaking_scan = now_ts
+                tag_to_update.last_scan_items_found = total_found
+                db.commit()
 
     except Exception as e:
         print(f"[Scheduler] Genel hata: {e}")
     finally:
         db.close()
+    return total_found
 
 
-def _scan_with_engine(db: Session, engine, tag: Tag, user_id: int, source: Optional[NewsSource], days_back: int = 30):
+def _scan_with_engine(db: Session, engine, tag: Tag, user_id: int, source: Optional[NewsSource], days_back: int = 30, is_trending: bool = False) -> int:
     """Run a scan with retry mechanism and logging."""
     start_time = time.time()
     items_found = 0
@@ -152,18 +171,34 @@ def _scan_with_engine(db: Session, engine, tag: Tag, user_id: int, source: Optio
                         ApiQuota.user_id == user_id
                     ).first()
                     if quota:
-                        now = datetime.now(timezone.utc)
-                        if quota.last_reset and (now - quota.last_reset).days >= 1:
-                            quota.daily_used = 0
-                            quota.last_reset = now
+                        now = datetime.now(timezone.utc).replace(tzinfo=None)
+                        if quota.last_reset:
+                            last_reset = quota.last_reset.replace(tzinfo=None) if quota.last_reset.tzinfo else quota.last_reset
+                            if (now - last_reset).days >= 1:
+                                quota.daily_used = 0
+                                quota.last_reset = now
                         if quota.daily_used >= quota.daily_limit:
                             print(f"[Scheduler] API kota aşıldı: {source.type.value}")
                             status = ScanStatus.PARTIAL
                             error_msg = "API kota aşıldı"
                             continue
 
+                src_label = f"{source.type.value}:{source.url[:40]}" if source else engine.get_engine_name()
+                print(f"[Scheduler] Taranıyor: {src_label} — etiket='{tag.name}' lang={lang}")
                 if source and source.type == SourceType.RSS and source.url:
-                    results = engine.parse_custom_feed(source.url)
+                    results = engine.parse_custom_feed(source.url, max_results=50)
+                elif source and source.type == SourceType.TWITTER and source.url:
+                    from engines.twitter_engine import TwitterEngine as _TW
+                    if isinstance(engine, _TW):
+                        results = engine.search_account(source.url, tag.name, language=lang, max_results=20)
+                    else:
+                        results = engine.search(tag.name, language=lang)
+                elif source and source.type == SourceType.YOUTUBE and source.url:
+                    from engines.youtube_engine import YoutubeEngine as _YT
+                    if isinstance(engine, _YT):
+                        results = engine.search_channel(source.url, tag.name, language=lang, max_results=20)
+                    else:
+                        results = engine.search(tag.name, language=lang)
                 else:
                     from engines.newsapi_engine import NewsApiEngine as _ER
                     if isinstance(engine, _ER):
@@ -171,6 +206,7 @@ def _scan_with_engine(db: Session, engine, tag: Tag, user_id: int, source: Optio
                     else:
                         results = engine.search(tag.name, language=lang)
 
+                print(f"[Scheduler] {src_label}: {len(results)} sonuç döndü")
                 for r in results:
                     # Relevance check: skip for newsapi (EventRegistry handles relevance internally)
                     if engine.get_engine_name() != "newsapi":
@@ -226,22 +262,27 @@ def _scan_with_engine(db: Session, engine, tag: Tag, user_id: int, source: Optio
                         source_url=r.source_url,
                         sentiment=s_label,
                         sentiment_score=s_score,
+                        retweet_count=getattr(r, 'retweet_count', None),
+                        like_count=getattr(r, 'like_count', None),
+                        is_trending=is_trending,
                         tag_id=tag.id,
                         user_id=user_id
                     )
-                    db.add(news_item)
-                    items_found += 1
-
-                    # Update API quota
-                    if source and source.api_key:
-                        quota = db.query(ApiQuota).filter(
-                            ApiQuota.source_type == source.type,
-                            ApiQuota.user_id == user_id
-                        ).first()
-                        if quota:
-                            quota.daily_used += 1
-
-                db.commit()
+                    try:
+                        db.add(news_item)
+                        db.commit()
+                        items_found += 1
+                        # Update API quota
+                        if source and source.api_key:
+                            quota = db.query(ApiQuota).filter(
+                                ApiQuota.source_type == source.type,
+                                ApiQuota.user_id == user_id
+                            ).first()
+                            if quota:
+                                quota.daily_used += 1
+                                db.commit()
+                    except Exception:
+                        db.rollback()
 
             # Success - break retry loop
             break
@@ -280,6 +321,8 @@ def _scan_with_engine(db: Session, engine, tag: Tag, user_id: int, source: Optio
             })
         except Exception:
             pass
+
+    return items_found
 
 
 def scan_all_users():
@@ -327,19 +370,38 @@ def scan_breaking_tags():
         from models import User
         now = datetime.now(timezone.utc).replace(tzinfo=None)
         tags = db.query(Tag).filter(Tag.is_breaking == True).all()
+        if not tags:
+            return
         for tag in tags:
             interval = tag.scan_interval_minutes or 30
             last = tag.last_breaking_scan
+            if last is not None:
+                kalan = interval * 60 - (now - last).total_seconds()
+                if kalan > 0:
+                    print(f"[Son Dakika] '{tag.name}' bekleniyor — {int(kalan//60)}dk {int(kalan%60)}sn kaldı")
+                    continue
             if last is None or (now - last).total_seconds() >= interval * 60:
-                user = db.query(User).filter(User.id == tag.user_id).first()
+                scan_start = datetime.now(timezone.utc)
                 scan_for_user_tag(tag.user_id, tag.id, days_back=1)
-                # Update last scan time
+                # Gerçek sayıyı DB'den al: bu tarama sırasında eklenen item'lar
                 db2: Session = SessionLocal()
                 try:
+                    from sqlalchemy import func as _func
+                    scan_start_naive = scan_start.replace(tzinfo=None)
+                    actually_added = db2.query(_func.count(NewsItem.id)).filter(
+                        NewsItem.tag_id == tag.id,
+                        NewsItem.user_id == tag.user_id,
+                        NewsItem.fetched_at >= scan_start_naive,
+                    ).scalar() or 0
                     t = db2.query(Tag).filter(Tag.id == tag.id).first()
                     if t:
                         t.last_breaking_scan = now
+                        t.last_scan_items_found = actually_added
                         db2.commit()
+                        from datetime import timedelta
+                        next_run = now + timedelta(minutes=interval)
+                        label = f"{actually_added} yeni haber" if actually_added > 0 else "yeni haber yok"
+                        print(f"[Son Dakika] '{tag.name}' tarandı ({label}). Sonraki: {next_run.strftime('%H:%M:%S')} ({interval}dk)")
                 finally:
                     db2.close()
     except Exception as e:
@@ -349,7 +411,7 @@ def scan_breaking_tags():
 
 
 def start_scheduler():
-    """Start APScheduler for breaking news tags only."""
+    """Start APScheduler: only breaking news tags are scanned automatically."""
     scheduler.add_job(
         scan_breaking_tags,
         'interval',
@@ -359,7 +421,7 @@ def start_scheduler():
         max_instances=1
     )
     scheduler.start()
-    print("[*] Son Dakika scheduler başlatıldı (her dakika kontrol)")
+    print("[*] Scheduler başlatıldı: yalnızca Son Dakika etiketleri otomatik taranır")
 
 
 def stop_scheduler():

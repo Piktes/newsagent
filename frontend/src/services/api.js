@@ -45,6 +45,7 @@ export const authApi = {
   createUser: (data) => api.post('/auth/users', data),
   updateUser: (id, data) => api.put(`/auth/users/${id}`, data),
   deleteUser: (id) => api.delete(`/auth/users/${id}`),
+  resetUserPassword: (id) => api.post(`/auth/users/${id}/reset-password`),
 };
 
 // ─── Tags ─────────────────────────────────────────────
@@ -64,6 +65,9 @@ export const sourcesApi = {
   update: (id, data) => api.put(`/sources/${id}`, data),
   delete: (id) => api.delete(`/sources/${id}`),
   getQuotas: () => api.get('/sources/quotas'),
+  verifyTwitter: (handle) => api.get('/sources/twitter/verify', { params: { handle } }),
+  verifyYoutube: (url)    => api.get('/sources/youtube/verify', { params: { url } }),
+  getTwitterTrends: (woeid = 23424969) => api.get('/sources/twitter/trends', { params: { woeid } }),
 };
 
 // ─── News ─────────────────────────────────────────────
@@ -81,6 +85,7 @@ export const newsApi = {
   count: (params) => api.get('/news/count', { params }),
   latestId: (params) => api.get('/news/latest-id', { params }),
   toggleRead: (id) => api.put(`/news/${id}/read`),
+  bulkMarkRead: (params) => api.put('/news/bulk/mark-read', null, { params }),
   toggleFavorite: (id) => api.put(`/news/${id}/favorite`),
   toggleHide: (id) => api.put(`/news/${id}/hide`),
   updateNote: (id, note) => api.put(`/news/${id}/note`, { note }),
@@ -93,6 +98,8 @@ export const newsApi = {
     if (tag_ids?.length) tag_ids.forEach(id => searchParams.append('tag_ids', id));
     return api.get('/news/export/pdf?' + searchParams.toString(), { responseType: 'blob' });
   },
+  bulkDeleteBySourceType: (sourceType) =>
+    api.delete('/news/bulk/by-source-type', { params: { source_type: sourceType } }),
 };
 
 // ─── Notifications ────────────────────────────────────
@@ -124,6 +131,23 @@ export const adminApi = {
   getErQuota: () => api.get('/admin/er-quota'),
   getErLogs: (page, page_size) => api.get('/admin/er-logs', { params: { page, page_size } }),
   clearErLogs: () => api.delete('/admin/er-logs'),
+  getXUsage: (days = 7) => api.get('/admin/x-usage', { params: { days } }),
+  getOverview: () => api.get('/admin/overview'),
+  getErrorLogs: (level, limit = 100) => api.get('/admin/error-logs', { params: { level, limit } }),
+  clearErrorLogs: () => api.delete('/admin/error-logs'),
+};
+
+// ─── Feedback ─────────────────────────────────────────
+export const feedbackApi = {
+  create: (formData) => api.post('/feedback/', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }),
+  myTickets: () => api.get('/feedback/'),
+  allTickets: (status) => api.get('/feedback/all', { params: status ? { status } : {} }),
+  answerTicket: (id, data) => api.put(`/feedback/${id}/answer`, data),
+  closeTicket: (id, note) => api.put(`/feedback/${id}/close`, { note: note || null }),
+  deleteTicket: (id) => api.delete(`/feedback/${id}`),
+  attachmentUrl: (filename) => `${API_BASE}/feedback/attachment/${filename}`,
 };
 
 export default api;

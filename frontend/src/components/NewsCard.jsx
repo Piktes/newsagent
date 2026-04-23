@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  TrendingUp, Minus, TrendingDown,
+  TrendingUp, Minus, TrendingDown, Flame,
   Star, NotebookPen, Clipboard, EyeOff, Eye, Save, X, Trash2,
   BookMarked, Plus, Check
 } from 'lucide-react';
@@ -201,6 +201,17 @@ export default function NewsCard({ item, onUpdate, showRestoreButton = false, is
             </span>
           )}
 
+          {item.is_trending && (
+            <span style={{
+              display: 'inline-flex', alignItems: 'center', gap: '0.2rem',
+              background: 'rgba(239,68,68,0.12)', color: '#ef4444',
+              border: '1px solid rgba(239,68,68,0.3)',
+              borderRadius: 4, padding: '1px 6px', fontSize: '0.72rem', fontWeight: 700,
+            }}>
+              <Flame size={11} /> TREND
+            </span>
+          )}
+
           {item.sentiment && (
             <span className={`sentiment-badge sentiment-${item.sentiment}`} title={`Güven: %${Math.round((item.sentiment_score || 0) * 100)}`}>
               <span className="sentiment-emoji" style={{ display: 'inline-flex', alignItems: 'center' }}>
@@ -238,6 +249,24 @@ export default function NewsCard({ item, onUpdate, showRestoreButton = false, is
 
         <h3 className="news-title">{decodeHtml(item.title)}</h3>
         {item.summary && <p className="news-summary">{decodeHtml(item.summary)}</p>}
+
+        {/* Twitter engagement metrics */}
+        {item.source_type === 'twitter' && (item.retweet_count != null || item.like_count != null) && (
+          <div style={{ display: 'flex', gap: '0.875rem', marginTop: '0.375rem', fontSize: '0.775rem', color: 'var(--text-muted)' }} onClick={e => e.stopPropagation()}>
+            {item.retweet_count != null && (
+              <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 014-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg>
+                {item.retweet_count.toLocaleString('tr-TR')}
+              </span>
+            )}
+            {item.like_count != null && (
+              <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill={item.like_count > 0 ? '#ef4444' : 'none'} stroke={item.like_count > 0 ? '#ef4444' : 'currentColor'} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
+                {item.like_count.toLocaleString('tr-TR')}
+              </span>
+            )}
+          </div>
+        )}
 
         {/* Existing note display */}
         {item.user_note && !showNote && (

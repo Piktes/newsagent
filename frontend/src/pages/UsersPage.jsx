@@ -42,6 +42,16 @@ export default function UsersPage() {
     }
   };
 
+  const handleResetPassword = async (user) => {
+    if (!confirm(`"${user.username}" kullanıcısının şifresi 123456 olarak sıfırlanacak. Devam edilsin mi?`)) return;
+    try {
+      await authApi.resetUserPassword(user.id);
+      alert('Şifre 123456 olarak sıfırlandı. Kullanıcı bir sonraki girişte şifresini değiştirmek zorunda kalacak.');
+    } catch (err) {
+      alert(err.response?.data?.detail || 'Hata oluştu');
+    }
+  };
+
   const handleDelete = async (id) => {
     if (!confirm('Bu kullanıcıyı silmek istediğinize emin misiniz?')) return;
     try {
@@ -122,7 +132,17 @@ export default function UsersPage() {
                 <td>{user.created_at ? new Date(user.created_at).toLocaleDateString('tr-TR') : '-'}</td>
                 <td>
                   {user.role !== 'super_admin' && (
-                    <button className="btn btn-sm btn-danger" onClick={() => handleDelete(user.id)}>🗑️</button>
+                    <div style={{ display: 'flex', gap: '0.375rem' }}>
+                      <button
+                        className="btn btn-sm"
+                        style={{ background: 'rgba(234,179,8,0.12)', color: '#ca8a04', border: '1px solid rgba(234,179,8,0.25)' }}
+                        onClick={() => handleResetPassword(user)}
+                        title="Şifreyi 123456 olarak sıfırla"
+                      >
+                        🔑
+                      </button>
+                      <button className="btn btn-sm btn-danger" onClick={() => handleDelete(user.id)}>🗑️</button>
+                    </div>
                   )}
                 </td>
               </tr>

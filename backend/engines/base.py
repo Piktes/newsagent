@@ -17,6 +17,8 @@ class NewsResult:
     thumbnail: Optional[str] = None
     published_at: Optional[str] = None  # ISO format
     source_url: Optional[str] = None  # original source URL
+    retweet_count: Optional[int] = None
+    like_count: Optional[int] = None
 
 
 class BaseNewsEngine(ABC):

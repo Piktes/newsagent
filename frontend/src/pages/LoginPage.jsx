@@ -54,13 +54,13 @@ export default function LoginPage({ isDarkTheme, toggleTheme }) {
           {error && <div className="login-error">{error}</div>}
 
           <div className="form-group">
-            <label htmlFor="username">Kullanıcı Adı</label>
+            <label htmlFor="username">E-posta</label>
             <input
               id="username"
-              type="text"
+              type="email"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="admin"
+              placeholder="kullanici@meb.gov.tr"
               required
               autoFocus
             />

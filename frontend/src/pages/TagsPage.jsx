@@ -51,6 +51,7 @@ export default function TagsPage() {
       setEditId(null);
       setShowForm(false);
       fetchTags();
+      window.dispatchEvent(new CustomEvent('tags-changed'));
     } catch (err) {
       alert(err.response?.data?.detail || 'Hata oluştu');
     }
@@ -77,6 +78,7 @@ export default function TagsPage() {
       await tagsApi.delete(deleteConfirm.id);
       setDeleteConfirm(null);
       fetchTags();
+      window.dispatchEvent(new CustomEvent('tags-changed'));
     } catch (err) {
       alert(err.response?.data?.detail || 'Silme hatası oluştu');
     }
@@ -228,6 +230,11 @@ export default function TagsPage() {
                 {tag.is_breaking && (
                   <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                     Her {INTERVALS.find(i => i.value === tag.scan_interval_minutes)?.label ?? `${tag.scan_interval_minutes}dk`}
+                  </span>
+                )}
+                {tag.last_breaking_scan && (
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                    Son tarama: {new Date((tag.last_breaking_scan.endsWith('Z') || tag.last_breaking_scan.includes('+') ? tag.last_breaking_scan : tag.last_breaking_scan + 'Z')).toLocaleString('tr-TR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' })}
                   </span>
                 )}
               </div>

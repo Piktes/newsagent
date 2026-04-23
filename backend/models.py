@@ -47,6 +47,19 @@ class ScanStatus(str, enum.Enum):
     PARTIAL = "partial"
 
 
+class TicketType(str, enum.Enum):
+    BUG = "bug"
+    SUGGESTION = "suggestion"
+    QUESTION = "question"
+    OTHER = "other"
+
+
+class TicketStatus(str, enum.Enum):
+    PENDING = "pending"
+    ANSWERED = "answered"
+    RESOLVED = "resolved"
+
+
 # ─── Models ───────────────────────────────────────────────
 
 class User(Base):
@@ -77,6 +90,7 @@ class Tag(Base):
     is_breaking = Column(Boolean, default=False)
     scan_interval_minutes = Column(Integer, default=30)
     last_breaking_scan = Column(DateTime, nullable=True)
+    last_scan_items_found = Column(Integer, nullable=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
@@ -125,6 +139,9 @@ class NewsItem(Base):
     sentiment = Column(String(20))  # positive, neutral, negative
     sentiment_score = Column(Float)  # confidence score 0.0 - 1.0
     is_hidden = Column(Boolean, default=False)
+    is_trending = Column(Boolean, default=False, nullable=True)
+    retweet_count = Column(Integer, nullable=True)
+    like_count = Column(Integer, nullable=True)
     tag_id = Column(Integer, ForeignKey("tags.id"), nullable=False)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
 
@@ -204,6 +221,36 @@ class FavoriteListItem(Base):
 
     fav_list = relationship("FavoriteList", back_populates="items")
     news_item = relationship("NewsItem")
+
+
+class FeedbackTicket(Base):
+    __tablename__ = "feedback_tickets"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    type = Column(SqlEnum(TicketType), default=TicketType.BUG)
+    subject = Column(String(200), nullable=False)
+    description = Column(Text, nullable=False)
+    status = Column(SqlEnum(TicketStatus), default=TicketStatus.PENDING)
+    admin_response = Column(Text, nullable=True)
+    attachments = Column(Text, nullable=True)  # JSON array of saved filenames
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, nullable=True)
+
+    user = relationship("User")
+
+
+class ErrorLog(Base):
+    __tablename__ = "error_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    level = Column(String(10), default="error")
+    path = Column(String(500), nullable=True)
+    method = Column(String(10), nullable=True)
+    message = Column(Text, nullable=False)
+    details = Column(Text, nullable=True)
+    user_id = Column(Integer, nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 
 class SmtpSettings(Base):

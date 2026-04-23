@@ -5,7 +5,7 @@ Request/Response models for API endpoints.
 from pydantic import BaseModel, EmailStr, Field
 from typing import Optional, List
 from datetime import datetime
-from models import UserRole, SourceType, Language, NotificationMethod, ScanStatus
+from models import UserRole, SourceType, Language, NotificationMethod, ScanStatus, TicketType, TicketStatus
 
 
 # ─── Auth ─────────────────────────────────────────────────
@@ -80,6 +80,7 @@ class TagResponse(BaseModel):
     is_breaking: bool
     scan_interval_minutes: int
     last_breaking_scan: Optional[datetime] = None
+    last_scan_items_found: Optional[int] = None
     user_id: int
     created_at: Optional[datetime] = None
 
@@ -138,6 +139,9 @@ class NewsItemResponse(BaseModel):
     sentiment: Optional[str] = None
     sentiment_score: Optional[float] = None
     is_hidden: bool = False
+    is_trending: bool = False
+    retweet_count: Optional[int] = None
+    like_count: Optional[int] = None
     tag_id: int
     tag_name: Optional[str] = None
     tag_color: Optional[str] = None
@@ -244,6 +248,57 @@ class FavoriteListResponse(BaseModel):
     id: int
     name: str
     item_count: int = 0
+    created_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+# ─── Feedback ────────────────────────────────────────────
+
+class FeedbackCreate(BaseModel):
+    type: TicketType = TicketType.BUG
+    subject: str = Field(min_length=3, max_length=200)
+    description: str = Field(min_length=10)
+
+
+class TicketAnswerRequest(BaseModel):
+    response: str = Field(min_length=1)
+    status: TicketStatus = TicketStatus.ANSWERED
+
+
+class TicketCloseRequest(BaseModel):
+    note: Optional[str] = None
+
+
+class FeedbackTicketResponse(BaseModel):
+    id: int
+    user_id: int
+    user_email: Optional[str] = None
+    user_username: Optional[str] = None
+    type: TicketType
+    subject: str
+    description: str
+    status: TicketStatus
+    admin_response: Optional[str] = None
+    attachments: Optional[List[str]] = []
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+# ─── Error Log ────────────────────────────────────────────
+
+class ErrorLogResponse(BaseModel):
+    id: int
+    level: str
+    path: Optional[str] = None
+    method: Optional[str] = None
+    message: str
+    details: Optional[str] = None
+    user_id: Optional[int] = None
     created_at: Optional[datetime] = None
 
     class Config:
