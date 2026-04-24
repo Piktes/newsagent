@@ -5,6 +5,9 @@ Run once: python migrate_trending.py
 import os, sys
 sys.path.insert(0, os.path.dirname(__file__))
 
+from dotenv import load_dotenv
+load_dotenv(override=True)
+
 from sqlalchemy import create_engine, text
 import os
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./haberajani.db")
