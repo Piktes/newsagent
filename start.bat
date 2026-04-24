@@ -8,7 +8,7 @@ echo.
 :: Start backend
 echo  [1/2] Backend baslatiliyor...
 cd /d "%~dp0backend"
-start "Haberajani Backend" cmd /k "py -m uvicorn main:app --reload --port 8000"
+start "Haberajani Backend" cmd /k "..\.venv\Scripts\python.exe -m uvicorn main:app --reload --port 8000"
 
 :: Wait for backend to start
 timeout /t 3 /nobreak >nul

@@ -364,9 +364,12 @@ export default function DashboardPage() {
       const res = await newsApi.exportPdf(params);
       const blob = new Blob([res.data], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
+      const d = new Date();
+      const pad = n => String(n).padStart(2, '0');
+      const stamp = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}`;
       const disposition = res.headers['content-disposition'] || '';
       const match = disposition.match(/filename="([^"]+)"/);
-      const filename = match ? match[1] : `haberajani_rapor_${new Date().toISOString().slice(0,10)}.pdf`;
+      const filename = match ? match[1] : `Haberajani_${stamp}.pdf`;
       const a = document.createElement('a');
       a.style.display = 'none'; a.href = url; a.download = filename;
       document.body.appendChild(a); a.click();
@@ -417,7 +420,7 @@ export default function DashboardPage() {
         {lastFetchedAt && (
           <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
             <RefreshCw size={11} />
-            Son tarama: {new Date(lastFetchedAt).toLocaleString('tr-TR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' })}
+            Son tarama: {new Date((lastFetchedAt.endsWith('Z') || lastFetchedAt.includes('+') ? lastFetchedAt : lastFetchedAt + 'Z')).toLocaleString('tr-TR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' })}
           </span>
         )}
       </div>
