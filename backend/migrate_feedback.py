@@ -19,7 +19,7 @@ with engine.connect() as conn:
     try:
         conn.execute(text("""
             CREATE TABLE IF NOT EXISTS feedback_tickets (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                id INTEGER PRIMARY KEY AUTO_INCREMENT,
                 user_id INTEGER NOT NULL REFERENCES users(id),
                 type VARCHAR(20) NOT NULL DEFAULT 'bug',
                 subject VARCHAR(200) NOT NULL,
@@ -39,7 +39,7 @@ with engine.connect() as conn:
     try:
         conn.execute(text("""
             CREATE TABLE IF NOT EXISTS error_logs (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                id INTEGER PRIMARY KEY AUTO_INCREMENT,
                 level VARCHAR(10) DEFAULT 'error',
                 path VARCHAR(500),
                 method VARCHAR(10),
