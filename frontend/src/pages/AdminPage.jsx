@@ -67,7 +67,7 @@ export default function AdminPage() {
 
       {/* KPI cards */}
       {stats && (
-        <div className="stats-grid" style={{ marginBottom: '2rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.75rem', marginBottom: '2rem' }}>
           {[
             { icon: '📰', val: stats.total_news,      label: 'Toplam Haber', cls: '' },
             { icon: '📬', val: stats.total_unread,    label: 'Okunmamış',   cls: 'accent' },
@@ -76,10 +76,12 @@ export default function AdminPage() {
             { icon: '📡', val: stats.total_sources,   label: 'Kaynak',       cls: '' },
             { icon: '👥', val: stats.total_users,     label: 'Kullanıcı',    cls: '' },
           ].map(s => (
-            <div key={s.label} className={`stat-card large ${s.cls}`}>
-              <span className="stat-icon">{s.icon}</span>
-              <span className="stat-value">{s.val}</span>
-              <span className="stat-label">{s.label}</span>
+            <div key={s.label} className={`stat-card large ${s.cls}`} style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              <span style={{ fontSize: '1.75rem', lineHeight: 1, flexShrink: 0 }}>{s.icon}</span>
+              <div>
+                <div className="stat-value" style={{ marginBottom: '0.1rem' }}>{s.val}</div>
+                <div className="stat-label">{s.label}</div>
+              </div>
             </div>
           ))}
         </div>
