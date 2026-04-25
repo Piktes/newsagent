@@ -1,25 +1,41 @@
 @echo off
 title Haberajani - Haber Ajani
 echo.
-echo  ⚡ Haberajani - Sosyal Medya Haber Ajani
+echo  Haberajani - Sosyal Medya Haber Ajani
 echo  ========================================
 echo.
 
-:: Start backend
-echo  [1/2] Backend baslatiliyor...
-cd /d "%~dp0backend"
-start "Haberajani Backend" cmd /k "C:\Users\HP\AppData\Local\Python\pythoncore-3.14-64\python.exe -m uvicorn main:app --reload --port 8000"
+:: Proje kok dizini (bat dosyasinin bulundugu yer)
+set "ROOT=%~dp0"
+set "BACKEND=%ROOT%backend"
+set "FRONTEND=%ROOT%frontend"
 
-:: Wait for backend to start
+:: Virtual environment kontrolu
+if exist "%ROOT%.venv\Scripts\python.exe" (
+    set "PYTHON=%ROOT%.venv\Scripts\python.exe"
+) else if exist "%BACKEND%\.venv\Scripts\python.exe" (
+    set "PYTHON=%BACKEND%\.venv\Scripts\python.exe"
+) else (
+    set "PYTHON=python"
+)
+
+echo  Python: %PYTHON%
+echo.
+
+:: Backend
+echo  [1/2] Backend baslatiliyor...
+cd /d "%BACKEND%"
+start "Haberajani Backend" cmd /k "%PYTHON% -m uvicorn main:app --reload --port 8000"
+
 timeout /t 3 /nobreak >nul
 
-:: Start frontend
+:: Frontend
 echo  [2/2] Frontend baslatiliyor...
-cd /d "%~dp0frontend"
+cd /d "%FRONTEND%"
 start "Haberajani Frontend" cmd /k "npm run dev"
 
 echo.
-echo  ✅ Haberajani baslatildi!
+echo  Haberajani baslatildi!
 echo  Backend:  http://localhost:8000
 echo  Frontend: http://localhost:5173
 echo  API Docs: http://localhost:8000/docs
