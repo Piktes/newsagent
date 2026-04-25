@@ -3,7 +3,7 @@ import { useSearchParams, useLocation } from 'react-router-dom';
 import {
   TrendingUp, Minus, TrendingDown, Activity, Newspaper, Calendar,
   RefreshCw, FileDown, Search, Rss, Globe, Zap,
-  X, Check, BellRing,
+  X, Check, BellRing, ChevronDown,
   ArrowUpDown, Tag, BarChart2, SlidersHorizontal,
 } from 'lucide-react';
 import { FaYoutube, FaXTwitter } from 'react-icons/fa6';
@@ -17,6 +17,83 @@ const SOURCE_OPTIONS = [
   { value: 'twitter',     label: 'Twitter / X',     Icon: FaXTwitter },
   { value: 'newsapi',     label: 'NewsAPI.ai',      Icon: Zap },
 ];
+
+/* ── Kaynak Multi-Select Dropdown ──────────────────────────────────── */
+function SourceMultiSelect({ selected, onChange }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const toggle = (value) => {
+    onChange(prev => {
+      if (prev.includes(value)) {
+        if (prev.length === 1) return prev;
+        return prev.filter(v => v !== value);
+      }
+      return [...prev, value];
+    });
+  };
+
+  const allSelected = selected.length === SOURCE_OPTIONS.length;
+  const label = allSelected
+    ? 'Tüm Kaynaklar'
+    : `${selected.length} Kaynak Seçili`;
+
+  return (
+    <div ref={ref} style={{ position: 'relative' }}>
+      <button
+        type="button"
+        className="filter-select"
+        style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', cursor: 'pointer', minWidth: 148, width: '100%' }}
+        onClick={() => setOpen(o => !o)}
+      >
+        <span style={{ flex: 1, textAlign: 'left', fontSize: '0.8rem' }}>{label}</span>
+        <ChevronDown size={12} style={{ opacity: 0.55, transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }} />
+      </button>
+
+      {open && (
+        <div style={{
+          position: 'absolute', top: 'calc(100% + 5px)', left: 0, zIndex: 200,
+          background: 'var(--bg-card)', borderRadius: 'var(--radius)',
+          boxShadow: 'var(--shadow-modal)', minWidth: 200, padding: '0.375rem',
+          display: 'flex', flexDirection: 'column', gap: '0.1rem',
+        }}>
+          {SOURCE_OPTIONS.map(({ value, label, Icon }) => {
+            const checked = selected.includes(value);
+            return (
+              <label
+                key={value}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.4rem 0.6rem', borderRadius: 'var(--radius-sm)', cursor: 'pointer', background: checked ? 'rgba(0,112,243,0.06)' : 'transparent', userSelect: 'none' }}
+                onClick={() => toggle(value)}
+              >
+                <span style={{ width: 15, height: 15, borderRadius: 3, display: 'flex', alignItems: 'center', justifyContent: 'center', background: checked ? 'var(--accent)' : 'transparent', boxShadow: checked ? 'none' : 'var(--ring)', flexShrink: 0 }}>
+                  {checked && <Check size={10} color="white" />}
+                </span>
+                <Icon size={13} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+                <span style={{ fontSize: '0.8125rem' }}>{label}</span>
+              </label>
+            );
+          })}
+          <div style={{ borderTop: '1px solid var(--border)', marginTop: '0.25rem', paddingTop: '0.25rem' }}>
+            <button
+              type="button"
+              className="btn btn-sm btn-outline"
+              style={{ width: '100%', justifyContent: 'center', fontSize: '0.75rem' }}
+              onClick={() => onChange(allSelected ? [SOURCE_OPTIONS[0].value] : SOURCE_OPTIONS.map(s => s.value))}
+            >
+              {allSelected ? 'Tümünü Kaldır' : 'Tümünü Seç'}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 /* ── Platform Seçim Popup ──────────────────────────────────────────── */
 function PlatformPopup({ selected, onConfirm, onClose }) {
@@ -570,18 +647,13 @@ export default function DashboardPage() {
 
           <div className="filter-group">
             <span className="filter-label"><SlidersHorizontal size={12} /> Kaynak</span>
-            <div className="filter-chips">
-              {SOURCE_OPTIONS.map(({ value, label, Icon }) => (
-                <button
-                  key={value}
-                  className={`filter-chip source-chip ${hasCustomPlatforms ? (selectedPlatforms.includes(value) ? 'active' : 'muted') : ''}`}
-                  onClick={() => togglePlatform(value)}
-                  style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}
-                >
-                  <Icon size={11} /> {label}
-                </button>
-              ))}
-            </div>
+            <SourceMultiSelect
+              selected={selectedPlatforms}
+              onChange={(updater) => {
+                setSelectedPlatforms(typeof updater === 'function' ? updater(selectedPlatforms) : updater);
+                setPage(1);
+              }}
+            />
           </div>
 
           {!isToday && (
