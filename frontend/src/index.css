@@ -808,11 +808,6 @@ body.light-theme .btn-fetch:hover:not(:disabled) {
   animation: fadeIn 0.2s ease;
 }
 
-/* Admin sayfaları — içerik alanını doldurur, çok geniş ekranlarda ortalanır */
-.admin-page {
-  max-width: 1440px;
-  margin: 0 auto;
-}
 
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(6px); }
