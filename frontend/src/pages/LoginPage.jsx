@@ -49,85 +49,114 @@ export default function LoginPage({ isDarkTheme, toggleTheme }) {
         />
       </div>
 
-      {/* Kart */}
+      {/* Orta alan — logo + kart */}
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', zIndex: 1 }}>
-        <div className="login-card">
-          <button
-            type="button"
-            className="btn btn-outline"
-            style={{ position: 'absolute', top: '20px', right: '20px', padding: '0.5rem', borderRadius: '50%' }}
-            onClick={toggleTheme}
-            title="Tema Değiştir"
-          >
-            {isDarkTheme ? <Sun size={18} /> : <Moon size={18} />}
-          </button>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
 
-          <div className="login-logo">
-            <h1>Haber Ajanı</h1>
-            <p className="login-subtitle">Sosyal Medya Haber Ajanı</p>
-          </div>
+          {/* Logo kartın üstünde duruyor */}
+          <img
+            src={logoSrc}
+            alt="MEB"
+            style={{
+              height: 68,
+              width: 'auto',
+              marginBottom: '-22px',
+              position: 'relative',
+              zIndex: 2,
+              filter: isDarkTheme
+                ? 'drop-shadow(0 2px 10px rgba(0,0,0,0.6))'
+                : 'drop-shadow(0 2px 8px rgba(0,0,0,0.18))',
+            }}
+          />
 
-          <form onSubmit={handleSubmit} className="login-form">
-            {error && <div className="login-error">{error}</div>}
-
-            <div className="form-group">
-              <label htmlFor="username">E-posta</label>
-              <input
-                id="username"
-                type="email"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder="kullanici@meb.gov.tr"
-                required
-                autoFocus
-              />
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="password">Şifre</label>
-              <div className="input-eye-wrap">
-                <input
-                  id="password"
-                  type={showPassword ? 'text' : 'password'}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••"
-                  required
-                />
-                <button type="button" className="eye-btn" onClick={() => setShowPassword(v => !v)} tabIndex={-1}>
-                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
-              </div>
-            </div>
-
-            <button type="submit" className="login-btn" disabled={loading}>
-              {loading ? <span className="spinner" /> : 'Giriş Yap'}
+          {/* Kart */}
+          <div className="login-card">
+            <button
+              type="button"
+              className="btn btn-outline"
+              style={{ position: 'absolute', top: '20px', right: '20px', padding: '0.5rem', borderRadius: '50%' }}
+              onClick={toggleTheme}
+              title="Tema Değiştir"
+            >
+              {isDarkTheme ? <Sun size={18} /> : <Moon size={18} />}
             </button>
-          </form>
 
-          <div className="login-footer-note">
-            <strong>ℹ️ Bilgi:</strong> Sisteme giriş için kurumsal <strong>@meb.gov.tr</strong> e-posta adresiniz gereklidir.
-            İlk girişte şifreniz <strong>123456</strong> olarak tanımlanmıştır — giriş sonrası değiştirmeniz zorunludur.
+            <div className="login-logo" style={{ paddingTop: '1.25rem' }}>
+              <h1>Haber Ajanı</h1>
+              <p className="login-subtitle">Sosyal Medya Haber Ajanı</p>
+            </div>
+
+            <form onSubmit={handleSubmit} className="login-form">
+              {error && <div className="login-error">{error}</div>}
+
+              <div className="form-group">
+                <label htmlFor="username">E-posta</label>
+                <input
+                  id="username"
+                  type="email"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="kullanici@meb.gov.tr"
+                  required
+                  autoFocus
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="password">Şifre</label>
+                <div className="input-eye-wrap">
+                  <input
+                    id="password"
+                    type={showPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••"
+                    required
+                  />
+                  <button type="button" className="eye-btn" onClick={() => setShowPassword(v => !v)} tabIndex={-1}>
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </div>
+
+              <button type="submit" className="login-btn" disabled={loading}>
+                {loading ? <span className="spinner" /> : 'Giriş Yap'}
+              </button>
+            </form>
+
+            <div className="login-footer-note">
+              <strong>ℹ️ Bilgi:</strong> Sisteme giriş için kurumsal <strong>@meb.gov.tr</strong> e-posta adresiniz gereklidir.
+              İlk girişte şifreniz <strong>123456</strong> olarak tanımlanmıştır — giriş sonrası değiştirmeniz zorunludur.
+            </div>
           </div>
+
         </div>
       </div>
 
-      {/* Footer bar */}
+      {/* Footer */}
       <footer style={{
         position: 'relative', zIndex: 1,
-        background: isDarkTheme ? 'rgba(0,0,0,0.45)' : 'rgba(255,255,255,0.7)',
-        backdropFilter: 'blur(8px)',
-        borderTop: `1px solid ${isDarkTheme ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.1)'}`,
-        padding: '0.625rem 1.5rem',
-        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem',
+        padding: '0.75rem 1.5rem',
+        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.6rem',
       }}>
-        <img src={logoSrc} alt="MEB" style={{ height: 22, width: 'auto', opacity: 0.8 }} />
-        <span style={{
-          fontSize: '0.72rem',
-          color: isDarkTheme ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)',
-        }}>
-          Bu uygulama T.C. Millî Eğitim Bakanlığı Bilgi İşlem Genel Müdürlüğü tarafından geliştirilmiştir &nbsp;·&nbsp; © 2026 Tüm hakları saklıdır
-        </span>
+        {/* İki ucu bitmemiş gradient ayırıcı çizgi */}
+        <div style={{
+          width: '100%',
+          height: '1px',
+          background: isDarkTheme
+            ? 'linear-gradient(to right, transparent, rgba(255,255,255,0.18) 25%, rgba(255,255,255,0.18) 75%, transparent)'
+            : 'linear-gradient(to right, transparent, rgba(0,0,0,0.14) 25%, rgba(0,0,0,0.14) 75%, transparent)',
+        }} />
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+          <img src={logoSrc} alt="MEB" style={{ height: 20, width: 'auto', opacity: 0.75 }} />
+          <span style={{
+            fontSize: '0.7rem',
+            color: isDarkTheme ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.4)',
+          }}>
+            Bu uygulama T.C. Millî Eğitim Bakanlığı Bilgi İşlem Genel Müdürlüğü tarafından geliştirilmiştir &nbsp;·&nbsp; © 2026 Tüm hakları saklıdır
+          </span>
+        </div>
       </footer>
     </div>
   );

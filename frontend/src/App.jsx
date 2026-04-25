@@ -123,20 +123,26 @@ function AppLayout({ isDarkTheme, toggleTheme }) {
         </Routes>
         <footer style={{
           marginTop: 'auto', flexShrink: 0,
-          background: isDarkTheme ? 'rgba(0,0,0,0.35)' : 'rgba(255,255,255,0.75)',
-          backdropFilter: 'blur(8px)',
-          borderTop: `1px solid ${isDarkTheme ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.1)'}`,
-          padding: '0.5rem 1.5rem',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.6rem',
+          padding: '0.6rem 1.5rem 0.75rem',
+          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem',
         }}>
-          <img
-            src={isDarkTheme ? '/meb-logo-white.png' : '/meb-logo-red.png'}
-            alt="MEB"
-            style={{ height: 18, width: 'auto', opacity: 0.8, flexShrink: 0 }}
-          />
-          <span style={{ fontSize: '0.7rem', color: isDarkTheme ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.45)' }}>
-            Bu uygulama T.C. Millî Eğitim Bakanlığı Bilgi İşlem Genel Müdürlüğü tarafından geliştirilmiştir &nbsp;·&nbsp; © 2026 Tüm hakları saklıdır
-          </span>
+          {/* İki ucu bitmemiş gradient ayırıcı */}
+          <div style={{
+            width: '100%', height: '1px',
+            background: isDarkTheme
+              ? 'linear-gradient(to right, transparent, rgba(255,255,255,0.12) 20%, rgba(255,255,255,0.12) 80%, transparent)'
+              : 'linear-gradient(to right, transparent, rgba(0,0,0,0.1) 20%, rgba(0,0,0,0.1) 80%, transparent)',
+          }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem' }}>
+            <img
+              src={isDarkTheme ? '/meb-logo-white.png' : '/meb-logo-red.png'}
+              alt="MEB"
+              style={{ height: 16, width: 'auto', opacity: 0.7, flexShrink: 0 }}
+            />
+            <span style={{ fontSize: '0.68rem', color: isDarkTheme ? 'rgba(255,255,255,0.38)' : 'rgba(0,0,0,0.38)' }}>
+              Bu uygulama T.C. Millî Eğitim Bakanlığı Bilgi İşlem Genel Müdürlüğü tarafından geliştirilmiştir &nbsp;·&nbsp; © 2026 Tüm hakları saklıdır
+            </span>
+          </div>
         </footer>
       </main>
     </div>
