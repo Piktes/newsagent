@@ -808,6 +808,12 @@ body.light-theme .btn-fetch:hover:not(:disabled) {
   animation: fadeIn 0.2s ease;
 }
 
+/* Admin sayfaları tam genişlik */
+.admin-page {
+  max-width: 100%;
+  margin: 0;
+}
+
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(6px); }
   to   { opacity: 1; transform: translateY(0); }

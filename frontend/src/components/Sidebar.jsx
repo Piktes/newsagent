@@ -184,6 +184,7 @@ export default function Sidebar({ collapsed, onToggle, isDarkTheme, toggleTheme 
               <NavLink
                 key={item.path}
                 to={item.path}
+                end={item.path === '/admin'}
                 className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
                 title={item.label}
               >

@@ -63,7 +63,7 @@ export default function UsersPage() {
   };
 
   return (
-    <div className="dashboard-page">
+    <div className="dashboard-page admin-page">
       <div className="page-header">
         <h1 style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}><Users size={28} /> Kullanıcı Yönetimi</h1>
         <button className="btn btn-primary" onClick={() => { setShowForm(!showForm); setEditId(null); setForm({ username: '', password: '', role: 'user' }); }}>

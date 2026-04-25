@@ -62,7 +62,7 @@ export default function AdminFeedbackPage() {
   const pendingCount = tickets.filter(t => t.status === 'pending').length;
 
   return (
-    <div style={{ maxWidth: 800, margin: '0 auto', padding: '1.5rem 1rem' }}>
+    <div className="dashboard-page admin-page">
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', marginBottom: '1.5rem' }}>
         <MessageSquare size={22} color="var(--accent)" />
         <h1 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700 }}>Sistem İyileştirmeleri</h1>

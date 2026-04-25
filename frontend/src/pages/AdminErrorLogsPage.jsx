@@ -41,7 +41,7 @@ export default function AdminErrorLogsPage() {
   };
 
   return (
-    <div style={{ maxWidth: 900, margin: '0 auto', padding: '1.5rem 1rem' }}>
+    <div className="dashboard-page admin-page">
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', marginBottom: '1.5rem' }}>
         <AlertTriangle size={22} color="#ef4444" />
         <h1 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700 }}>Hata Logları</h1>
