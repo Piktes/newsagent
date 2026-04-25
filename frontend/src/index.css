@@ -88,12 +88,12 @@
 
 /* ─── Light Theme ────────────────────────────────── */
 body.light-theme {
-  --bg-primary:    #fafafa;
-  --bg-secondary:  #ffffff;
+  --bg-primary:    #f0f4f9;
+  --bg-secondary:  #f7fafd;
   --bg-card:       #ffffff;
-  --bg-card-hover: #fafafa;
-  --bg-sidebar:    #ffffff;
-  --bg-input:      #ffffff;
+  --bg-card-hover: #f4f7fc;
+  --bg-sidebar:    #e4ecf5;
+  --bg-input:      #f7fafd;
 
   --text-primary:   #171717;
   --text-secondary: #4d4d4d;
@@ -153,7 +153,7 @@ body {
 
 /* ─── Light theme gradient ───────────────────────── */
 body.light-theme {
-  background: linear-gradient(145deg, #f4f6fb 0%, #ffffff 35%, #eef2fa 60%, #f7f9fe 100%);
+  background: linear-gradient(145deg, #e8eef8 0%, #f2f6fc 35%, #eaeff8 60%, #eff4fb 100%);
 }
 
 a { color: inherit; text-decoration: none; }
@@ -481,12 +481,12 @@ body:not(.light-theme) .nav-item.active {
 body.light-theme .login-page {
   background: linear-gradient(
     135deg,
-    #e0eaff,
-    #f0e6ff,
-    #dff4f0,
-    #fef3e2,
-    #e8f4fd,
-    #e0eaff
+    #d8e6f8,
+    #e4d8f5,
+    #ceeaf0,
+    #deeaf8,
+    #d4e2f4,
+    #d8e6f8
   );
   background-size: 400% 400%;
   animation: gradient-wave 12s ease infinite;
