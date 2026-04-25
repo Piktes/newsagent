@@ -34,12 +34,12 @@
   --sidebar-collapsed: 64px;
 
   /* Surfaces */
-  --bg-primary:    #0a0a0a;
-  --bg-secondary:  #111111;
-  --bg-card:       #161616;
-  --bg-card-hover: #1c1c1c;
-  --bg-sidebar:    #0a0a0a;
-  --bg-input:      #161616;
+  --bg-primary:    #161b2c;
+  --bg-secondary:  #1d2338;
+  --bg-card:       #212840;
+  --bg-card-hover: #272f4c;
+  --bg-sidebar:    #131726;
+  --bg-input:      #1d2338;
 
   /* Text */
   --text-primary:   #ededed;
@@ -147,7 +147,7 @@ html, body, #root {
 
 /* ─── Dark theme gradient ────────────────────────── */
 body {
-  background: linear-gradient(145deg, #07080e 0%, #0d0f1a 35%, #0a0c16 60%, #07090f 100%);
+  background: linear-gradient(145deg, #121726 0%, #1b2340 35%, #151f38 60%, #111624 100%);
   min-height: 100vh;
 }
 
@@ -185,7 +185,7 @@ input, select, textarea { font-family: inherit; }
   animation: toastIn 0.25s ease;
 }
 .scan-toast.running {
-  background: rgba(10, 12, 24, 0.95);
+  background: rgba(18, 24, 44, 0.95);
   border: 1px solid rgba(0,112,243,0.35);
   color: var(--text-primary);
 }
@@ -467,12 +467,12 @@ body:not(.light-theme) .nav-item.active {
   overflow: hidden;
   background: linear-gradient(
     135deg,
-    #0f0c29,
-    #1a1a4e,
-    #0d2137,
-    #0a3d2b,
-    #1a1a4e,
-    #0f0c29
+    #151d35,
+    #1e2d52,
+    #162840,
+    #1a2e3a,
+    #1e2a50,
+    #151d35
   );
   background-size: 400% 400%;
   animation: gradient-wave 12s ease infinite;
@@ -505,11 +505,11 @@ body.light-theme .login-page {
   z-index: 1;
   width: 400px;
   padding: 2.5rem;
-  background: rgba(15, 18, 30, 0.55);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.4);
+  background: rgba(22, 28, 50, 0.60);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.35);
   border-radius: var(--radius-lg);
 }
 
