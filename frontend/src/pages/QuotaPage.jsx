@@ -52,53 +52,56 @@ function NewsApiTab() {
 
   return (
     <>
-      <div className="stats-row" style={{ marginBottom: '1.5rem' }}>
-        <div className="stat-card" style={{ flex: '2', minWidth: 0 }}>
-          {loadingQuota ? (
-            <div style={{ display: 'flex', justifyContent: 'center', padding: '1rem' }}><div className="spinner" /></div>
-          ) : quota ? (
-            <>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
-                <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
-                  NewsAPI.ai — Aylık Token Kullanımı
-                </span>
-                <button className="btn btn-sm btn-outline" style={{ gap: '0.3rem' }} onClick={fetchQuota}>
-                  <RefreshCw size={13} /> Yenile
-                </button>
+      {/* Büyük kota kartı — tam genişlik */}
+      <div className="stat-card" style={{ marginBottom: '0.75rem' }}>
+        {loadingQuota ? (
+          <div style={{ display: 'flex', justifyContent: 'center', padding: '1rem' }}><div className="spinner" /></div>
+        ) : quota ? (
+          <>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+              <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                NewsAPI.ai — Aylık Token Kullanımı
+              </span>
+              <button className="btn btn-sm btn-outline" style={{ gap: '0.3rem' }} onClick={fetchQuota}>
+                <RefreshCw size={13} /> Yenile
+              </button>
+            </div>
+            <div style={{ marginBottom: '1.25rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.375rem', fontSize: '0.8125rem' }}>
+                <span style={{ color: 'var(--text-muted)' }}>Kullanılan</span>
+                <span style={{ fontWeight: 700, color: gaugeColor }}>{usedPct}%</span>
               </div>
-              <div style={{ marginBottom: '0.75rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.375rem', fontSize: '0.8125rem' }}>
-                  <span style={{ color: 'var(--text-muted)' }}>Kullanılan</span>
-                  <span style={{ fontWeight: 700, color: gaugeColor }}>{usedPct}%</span>
-                </div>
-                <div style={{ height: 10, borderRadius: 99, background: 'var(--bg-secondary)', overflow: 'hidden' }}>
-                  <div style={{ height: '100%', borderRadius: 99, width: `${usedPct}%`, background: gaugeColor, transition: 'width 0.6s ease' }} />
-                </div>
+              <div style={{ height: 10, borderRadius: 99, background: 'var(--bg-secondary)', overflow: 'hidden' }}>
+                <div style={{ height: '100%', borderRadius: 99, width: `${usedPct}%`, background: gaugeColor, transition: 'width 0.6s ease' }} />
               </div>
-              <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
-                  <span style={{ fontSize: '1.75rem', fontWeight: 800, color: gaugeColor, lineHeight: 1 }}>{quota.used_tokens.toLocaleString('tr-TR')}</span>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Kullanılan Token</span>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
-                  <span style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--accent)', lineHeight: 1 }}>{quota.available_tokens.toLocaleString('tr-TR')}</span>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Kalan Token</span>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
-                  <span style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-secondary)', lineHeight: 1 }}>{quota.total_tokens.toLocaleString('tr-TR')}</span>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Toplam Paket</span>
-                </div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                <span style={{ fontSize: '2rem', fontWeight: 800, color: gaugeColor, lineHeight: 1 }}>{quota.used_tokens.toLocaleString('tr-TR')}</span>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Kullanılan Token</span>
               </div>
-              {usedPct >= 80 && (
-                <div style={{ marginTop: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.75rem', borderRadius: 'var(--radius-sm)', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', fontSize: '0.8125rem', color: 'var(--negative)' }}>
-                  <AlertTriangle size={14} /> Kota %{usedPct} doldu. Yeni API çağrıları kısıtlanabilir.
-                </div>
-              )}
-            </>
-          ) : (
-            <span style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>Kota bilgisi alınamadı.</span>
-          )}
-        </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                <span style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--accent)', lineHeight: 1 }}>{quota.available_tokens.toLocaleString('tr-TR')}</span>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Kalan Token</span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                <span style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--text-secondary)', lineHeight: 1 }}>{quota.total_tokens.toLocaleString('tr-TR')}</span>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Toplam Paket</span>
+              </div>
+            </div>
+            {usedPct >= 80 && (
+              <div style={{ marginTop: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.75rem', borderRadius: 'var(--radius-sm)', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', fontSize: '0.8125rem', color: 'var(--negative)' }}>
+                <AlertTriangle size={14} /> Kota %{usedPct} doldu. Yeni API çağrıları kısıtlanabilir.
+              </div>
+            )}
+          </>
+        ) : (
+          <span style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>Kota bilgisi alınamadı.</span>
+        )}
+      </div>
+
+      {/* İki küçük stat kart — yan yana */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1.5rem' }}>
         <div className="stat-card"><span className="stat-value">{total}</span><span className="stat-label">Toplam API Çağrısı</span></div>
         <div className="stat-card accent">
           <span className="stat-value">{logs.reduce((s, l) => s + (l.tokens_used || 1), 0)}</span>
@@ -185,87 +188,82 @@ function XApiTab() {
 
   return (
     <>
-      <div className="stats-row" style={{ marginBottom: '1.5rem' }}>
-        <div className="stat-card" style={{ flex: '2', minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
-            <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
-              𝕏 API — Proje Kullanımı
-            </span>
-            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-              <select
-                value={days}
-                onChange={e => setDays(Number(e.target.value))}
-                className="filter-select"
-                style={{ fontSize: '0.8125rem', padding: '0.25rem 0.5rem' }}
-              >
-                {[7, 14, 30, 60, 90].map(d => <option key={d} value={d}>Son {d} gün</option>)}
-              </select>
-              <button className="btn btn-sm btn-outline" style={{ gap: '0.3rem' }} onClick={() => fetchUsage(days)}>
-                <RefreshCw size={13} /> Yenile
-              </button>
-            </div>
+      {/* Büyük X API kota kartı — tam genişlik */}
+      <div className="stat-card" style={{ marginBottom: '0.75rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+          <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+            𝕏 API — Proje Kullanımı
+          </span>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <select value={days} onChange={e => setDays(Number(e.target.value))} className="filter-select" style={{ fontSize: '0.8125rem', padding: '0.25rem 0.5rem' }}>
+              {[7, 14, 30, 60, 90].map(d => <option key={d} value={d}>Son {d} gün</option>)}
+            </select>
+            <button className="btn btn-sm btn-outline" style={{ gap: '0.3rem' }} onClick={() => fetchUsage(days)}>
+              <RefreshCw size={13} /> Yenile
+            </button>
           </div>
-
-          {loading ? (
-            <div style={{ display: 'flex', justifyContent: 'center', padding: '1rem' }}><div className="spinner" /></div>
-          ) : usage ? (
-            <>
-              <div style={{ marginBottom: '0.75rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.375rem', fontSize: '0.8125rem' }}>
-                  <span style={{ color: 'var(--text-muted)' }}>Kullanılan</span>
-                  <span style={{ fontWeight: 700, color: gaugeColor }}>{usedPct}%</span>
-                </div>
-                <div style={{ height: 10, borderRadius: 99, background: 'var(--bg-secondary)', overflow: 'hidden' }}>
-                  <div style={{ height: '100%', borderRadius: 99, width: `${Math.min(usedPct, 100)}%`, background: gaugeColor, transition: 'width 0.6s ease' }} />
-                </div>
-              </div>
-              <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
-                  <span style={{ fontSize: '1.75rem', fontWeight: 800, color: gaugeColor, lineHeight: 1 }}>{(usage.project_usage || 0).toLocaleString('tr-TR')}</span>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Kullanılan İstek</span>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
-                  <span style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--accent)', lineHeight: 1 }}>{(usage.remaining || 0).toLocaleString('tr-TR')}</span>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Kalan İstek</span>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
-                  <span style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-secondary)', lineHeight: 1 }}>{(usage.project_cap || 0).toLocaleString('tr-TR')}</span>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Toplam Limit</span>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
-                  <span style={{ fontSize: '1.75rem', fontWeight: 800, color: '#10b981', lineHeight: 1 }}>${(usage.estimated_cost || 0).toFixed(2)}</span>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Tahmini Maliyet</span>
-                </div>
-              </div>
-              <div style={{ marginTop: '0.75rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                Birim maliyet: $0.005 / istek · Toplam kredi: $100.00 = 20.000 istek
-              </div>
-              {usedPct >= 80 && (
-                <div style={{ marginTop: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.75rem', borderRadius: 'var(--radius-sm)', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', fontSize: '0.8125rem', color: 'var(--negative)' }}>
-                  <AlertTriangle size={14} /> X API kullanımı %{usedPct} seviyesinde. Kalan kredileri dikkatli kullanın.
-                </div>
-              )}
-            </>
-          ) : (
-            <div style={{ color: 'var(--text-muted)', fontSize: '0.875rem', padding: '0.5rem 0' }}>
-              X API kullanım verisi alınamadı. Bearer Token doğru yapılandırıldığından emin olun.
-            </div>
-          )}
         </div>
 
-        {usage && (
+        {loading ? (
+          <div style={{ display: 'flex', justifyContent: 'center', padding: '1rem' }}><div className="spinner" /></div>
+        ) : usage ? (
           <>
-            <div className="stat-card">
-              <span className="stat-value">${(usage.estimated_cost || 0).toFixed(2)}</span>
-              <span className="stat-label">Harcanan ($)</span>
+            <div style={{ marginBottom: '1.25rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.375rem', fontSize: '0.8125rem' }}>
+                <span style={{ color: 'var(--text-muted)' }}>Kullanılan</span>
+                <span style={{ fontWeight: 700, color: gaugeColor }}>{usedPct}%</span>
+              </div>
+              <div style={{ height: 10, borderRadius: 99, background: 'var(--bg-secondary)', overflow: 'hidden' }}>
+                <div style={{ height: '100%', borderRadius: 99, width: `${Math.min(usedPct, 100)}%`, background: gaugeColor, transition: 'width 0.6s ease' }} />
+              </div>
             </div>
-            <div className="stat-card accent">
-              <span className="stat-value">${(100 - (usage.estimated_cost || 0)).toFixed(2)}</span>
-              <span className="stat-label">Kalan Kredi ($)</span>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                <span style={{ fontSize: '2rem', fontWeight: 800, color: gaugeColor, lineHeight: 1 }}>{(usage.project_usage || 0).toLocaleString('tr-TR')}</span>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Kullanılan İstek</span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                <span style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--accent)', lineHeight: 1 }}>{(usage.remaining || 0).toLocaleString('tr-TR')}</span>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Kalan İstek</span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                <span style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--text-secondary)', lineHeight: 1 }}>{(usage.project_cap || 0).toLocaleString('tr-TR')}</span>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Toplam Limit</span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                <span style={{ fontSize: '2rem', fontWeight: 800, color: '#10b981', lineHeight: 1 }}>${(usage.estimated_cost || 0).toFixed(2)}</span>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Tahmini Maliyet</span>
+              </div>
             </div>
+            <div style={{ marginTop: '0.75rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+              Birim maliyet: $0.005 / istek · Toplam kredi: $100.00 = 20.000 istek
+            </div>
+            {usedPct >= 80 && (
+              <div style={{ marginTop: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.75rem', borderRadius: 'var(--radius-sm)', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', fontSize: '0.8125rem', color: 'var(--negative)' }}>
+                <AlertTriangle size={14} /> X API kullanımı %{usedPct} seviyesinde. Kalan kredileri dikkatli kullanın.
+              </div>
+            )}
           </>
+        ) : (
+          <div style={{ color: 'var(--text-muted)', fontSize: '0.875rem', padding: '0.5rem 0' }}>
+            X API kullanım verisi alınamadı. Bearer Token doğru yapılandırıldığından emin olun.
+          </div>
         )}
       </div>
+
+      {/* İki küçük stat kart — yan yana */}
+      {usage && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1.5rem' }}>
+          <div className="stat-card">
+            <span className="stat-value">${(usage.estimated_cost || 0).toFixed(2)}</span>
+            <span className="stat-label">Harcanan ($)</span>
+          </div>
+          <div className="stat-card accent">
+            <span className="stat-value">${(100 - (usage.estimated_cost || 0)).toFixed(2)}</span>
+            <span className="stat-label">Kalan Kredi ($)</span>
+          </div>
+        </div>
+      )}
 
       {usage?.daily_usage?.length > 0 && (
         <>
