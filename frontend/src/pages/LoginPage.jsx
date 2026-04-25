@@ -45,7 +45,7 @@ export default function LoginPage({ isDarkTheme, toggleTheme }) {
         <img
           src={logoSrc}
           alt=""
-          style={{ width: '55vmin', opacity: isDarkTheme ? 0.05 : 0.06, userSelect: 'none' }}
+          style={{ width: '82vmin', opacity: isDarkTheme ? 0.05 : 0.06, userSelect: 'none' }}
         />
       </div>
 
