@@ -34,12 +34,12 @@
   --sidebar-collapsed: 64px;
 
   /* Surfaces */
-  --bg-primary:    #1d1d1f;
-  --bg-secondary:  #252527;
-  --bg-card:       #2c2c2e;
-  --bg-card-hover: #363638;
-  --bg-sidebar:    #161618;
-  --bg-input:      #252527;
+  --bg-primary:    #161b2c;
+  --bg-secondary:  #1d2338;
+  --bg-card:       #212840;
+  --bg-card-hover: #272f4c;
+  --bg-sidebar:    #131726;
+  --bg-input:      #1d2338;
 
   /* Text */
   --text-primary:   #ededed;
@@ -147,7 +147,7 @@ html, body, #root {
 
 /* ─── Dark theme gradient ────────────────────────── */
 body {
-  background: linear-gradient(145deg, #1a1a1c 0%, #212123 35%, #1d1d1f 60%, #191919 100%);
+  background: linear-gradient(145deg, #121726 0%, #1b2340 35%, #151f38 60%, #111624 100%);
   min-height: 100vh;
 }
 
@@ -185,7 +185,7 @@ input, select, textarea { font-family: inherit; }
   animation: toastIn 0.25s ease;
 }
 .scan-toast.running {
-  background: rgba(18, 24, 44, 0.95);
+  background: rgba(18, 24, 44, 0.95); /* slate-blue dark toast */
   border: 1px solid rgba(0,112,243,0.35);
   color: var(--text-primary);
 }
@@ -399,6 +399,18 @@ body:not(.light-theme) .nav-item.active {
   border-top: 1px solid var(--border);
 }
 
+/* ─── Light theme sidebar overrides ─────────────── */
+body.light-theme .sidebar-header {
+  background: #f2f2f4;
+}
+
+body.light-theme .sidebar-user-top {
+  background: transparent;
+  box-shadow: none;
+  border: 1px solid rgba(0, 0, 0, 0.10);
+  border-radius: var(--radius-sm);
+}
+
 .user-info {
   display: flex;
   align-items: center;
@@ -467,12 +479,12 @@ body:not(.light-theme) .nav-item.active {
   overflow: hidden;
   background: linear-gradient(
     135deg,
-    #1a1a1c,
-    #242426,
-    #1e1e20,
-    #1c1c1e,
-    #222224,
-    #1a1a1c
+    #151d35,
+    #1e2d52,
+    #162840,
+    #1a2e3a,
+    #1e2a50,
+    #151d35
   );
   background-size: 400% 400%;
   animation: gradient-wave 12s ease infinite;
@@ -505,11 +517,11 @@ body.light-theme .login-page {
   z-index: 1;
   width: 400px;
   padding: 2.5rem;
-  background: rgba(30, 30, 32, 0.72);
+  background: rgba(22, 28, 50, 0.60);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.09);
-  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.35);
   border-radius: var(--radius-lg);
 }
 
