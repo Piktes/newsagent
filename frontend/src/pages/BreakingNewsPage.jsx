@@ -276,6 +276,7 @@ export default function BreakingNewsPage() {
           "Son Dakika" etiketleri <strong>her dakika kontrol edilir</strong>; tarama sıklığı dolduğunda
           NewsAPI.ai + aktif kaynaklarınız (Twitter/X vb.) otomatik taranır.
           Haberler etiket anahtar kelimesiyle filtrelenerek sentimen analizi sonrası eklenir.
+          {' '}Otomatik tarama <strong>07:00–19:00</strong> saatleri arasında aktiftir; gece saatlerinde duraklatılır.
           {breakingTags.length > 0 && (
             <div style={{ marginTop: '0.4rem', display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
               {breakingTags.map(t => (

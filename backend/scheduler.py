@@ -365,6 +365,12 @@ def scan_all_users():
 
 def scan_breaking_tags():
     """Scan breaking news tags that are due based on their scan_interval_minutes."""
+    _now_utc = datetime.now(timezone.utc)
+    _turkey_hour = (_now_utc.hour + 3) % 24
+    if _turkey_hour >= 19 or _turkey_hour < 7:
+        print("[Scheduler] Gece modu aktif (19:00–07:00): tarama duraklatıldı")
+        return
+
     db: Session = SessionLocal()
     try:
         from models import User
