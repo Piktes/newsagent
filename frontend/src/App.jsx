@@ -102,7 +102,7 @@ function AppLayout({ isDarkTheme, toggleTheme }) {
           )}
         </div>
       )}
-      <main className="main-content">
+      <main className="main-content" style={{ display: 'flex', flexDirection: 'column' }}>
         <Routes>
           <Route path="/" element={<DashboardPage />} />
           <Route path="/today" element={<DashboardPage />} />
@@ -121,6 +121,23 @@ function AppLayout({ isDarkTheme, toggleTheme }) {
           <Route path="/admin/feedback" element={<ProtectedRoute adminOnly><AdminFeedbackPage /></ProtectedRoute>} />
           <Route path="/admin/error-logs" element={<ProtectedRoute adminOnly><AdminErrorLogsPage /></ProtectedRoute>} />
         </Routes>
+        <footer style={{
+          marginTop: 'auto', flexShrink: 0,
+          background: isDarkTheme ? 'rgba(0,0,0,0.35)' : 'rgba(255,255,255,0.75)',
+          backdropFilter: 'blur(8px)',
+          borderTop: `1px solid ${isDarkTheme ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.1)'}`,
+          padding: '0.5rem 1.5rem',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.6rem',
+        }}>
+          <img
+            src={isDarkTheme ? '/meb-logo-white.png' : '/meb-logo-red.png'}
+            alt="MEB"
+            style={{ height: 18, width: 'auto', opacity: 0.8, flexShrink: 0 }}
+          />
+          <span style={{ fontSize: '0.7rem', color: isDarkTheme ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.45)' }}>
+            Bu uygulama T.C. Millî Eğitim Bakanlığı Bilgi İşlem Genel Müdürlüğü tarafından geliştirilmiştir &nbsp;·&nbsp; © 2026 Tüm hakları saklıdır
+          </span>
+        </footer>
       </main>
     </div>
   );

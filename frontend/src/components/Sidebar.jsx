@@ -66,9 +66,19 @@ export default function Sidebar({ collapsed, onToggle, isDarkTheme, toggleTheme 
   return (
     <aside className={`sidebar ${collapsed ? 'collapsed' : ''}`}>
       <div className="sidebar-header">
-        <div className="logo" onClick={onToggle}>
-          <span className="logo-icon"><Zap size={24} color="var(--accent)" /></span>
-          {!collapsed && <span className="logo-text">Haber Ajanı</span>}
+        <div className="logo" onClick={onToggle} title="Menüyü Daralt / Genişlet" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <img
+            src={isDarkTheme ? '/meb-logo-white.png' : '/meb-logo-red.png'}
+            alt="MEB"
+            style={{
+              height: collapsed ? 28 : 32,
+              width: 'auto',
+              objectFit: 'contain',
+              flexShrink: 0,
+              transition: 'all 0.2s',
+            }}
+          />
+          {!collapsed && <span style={{ fontWeight: 700, fontSize: '1rem', whiteSpace: 'nowrap', letterSpacing: '-0.01em' }}>Haber Ajanı</span>}
         </div>
         {!collapsed && (
           <div className="sidebar-user-top">
@@ -185,7 +195,18 @@ export default function Sidebar({ collapsed, onToggle, isDarkTheme, toggleTheme 
         )}
       </nav>
 
-      <div className="sidebar-footer" style={{ padding: '0.5rem 0.75rem' }} />
+      <div className="sidebar-footer" style={{ padding: '0.5rem 0.75rem' }}>
+        {!collapsed && (
+          <div style={{
+            fontSize: '0.62rem', color: 'var(--text-muted)', lineHeight: 1.5,
+            textAlign: 'center', padding: '0.5rem 0',
+          }}>
+            T.C. Millî Eğitim Bakanlığı<br />
+            Bilgi İşlem Genel Müdürlüğü<br />
+            © 2026
+          </div>
+        )}
+      </div>
     </aside>
   );
 }
