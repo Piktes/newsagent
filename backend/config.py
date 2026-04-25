@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 load_dotenv(override=True)
 
 # NewsAPI.ai (EventRegistry) system-wide API key
-ER_API_KEY = os.getenv("ER_API_KEY", "5c4eb97a-6f8b-494f-8bba-4ab7337718dc")
+ER_API_KEY = os.getenv("ER_API_KEY", "")
 
 # X (Twitter) API — App-Only Bearer Token
 X_BEARER_TOKEN = os.getenv("X_BEARER_TOKEN", "")

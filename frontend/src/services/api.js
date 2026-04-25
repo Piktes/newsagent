@@ -150,4 +150,19 @@ export const feedbackApi = {
   attachmentUrl: (filename) => `${API_BASE}/feedback/attachment/${filename}`,
 };
 
+export const globalSearchApi = {
+  // Tag CRUD
+  listTags:     ()           => api.get('/global/tags'),
+  createTag:    (data)       => api.post('/global/tags', data),
+  deleteTag:    (id)         => api.delete(`/global/tags/${id}`),
+  analyzeTag:   (id, days)   => api.post(`/global/tags/${id}/analyze`, null, { params: { date_range_days: days } }),
+  tagLatest:    (id)         => api.get(`/global/tags/${id}/latest`),
+  // Legacy search endpoints (kept for now)
+  search:        (data)      => api.post('/global/search', data),
+  listSearches:  (page = 1)  => api.get('/global/searches', { params: { page } }),
+  getSearch:     (id)        => api.get(`/global/searches/${id}`),
+  refreshSearch: (id)        => api.post(`/global/searches/${id}/refresh`),
+  deleteSearch:  (id)        => api.delete(`/global/searches/${id}`),
+};
+
 export default api;

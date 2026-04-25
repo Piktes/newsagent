@@ -29,14 +29,13 @@ export default function LoginPage({ isDarkTheme, toggleTheme }) {
 
   return (
     <div className="login-page" style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-      {/* Arkaplan orb'ları */}
       <div className="login-bg">
         <div className="login-orb login-orb-1"></div>
         <div className="login-orb login-orb-2"></div>
         <div className="login-orb login-orb-3"></div>
       </div>
 
-      {/* MEB logo watermark — tüm arka planı kaplıyor */}
+      {/* MEB logo watermark */}
       <div style={{
         position: 'fixed', inset: 0, zIndex: 0,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -53,7 +52,7 @@ export default function LoginPage({ isDarkTheme, toggleTheme }) {
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', zIndex: 1 }}>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
 
-          {/* Logo kartın üstünde duruyor */}
+          {/* Logo kartın üstünde */}
           <img
             src={logoSrc}
             alt="MEB"
@@ -69,7 +68,6 @@ export default function LoginPage({ isDarkTheme, toggleTheme }) {
             }}
           />
 
-          {/* Kart */}
           <div className="login-card">
             <button
               type="button"
@@ -139,7 +137,6 @@ export default function LoginPage({ isDarkTheme, toggleTheme }) {
         padding: '0.75rem 1.5rem',
         display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.6rem',
       }}>
-        {/* İki ucu bitmemiş gradient ayırıcı çizgi */}
         <div style={{
           width: '100%',
           height: '1px',
@@ -147,7 +144,6 @@ export default function LoginPage({ isDarkTheme, toggleTheme }) {
             ? 'linear-gradient(to right, transparent, rgba(255,255,255,0.18) 25%, rgba(255,255,255,0.18) 75%, transparent)'
             : 'linear-gradient(to right, transparent, rgba(0,0,0,0.14) 25%, rgba(0,0,0,0.14) 75%, transparent)',
         }} />
-
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
           <img src={logoSrc} alt="MEB" style={{ height: 20, width: 'auto', opacity: 0.75 }} />
           <span style={{

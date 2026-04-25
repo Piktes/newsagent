@@ -263,3 +263,85 @@ class SmtpSettings(Base):
     password = Column(String(500))
     from_email = Column(String(200))
     is_active = Column(Boolean, default=False)
+
+
+# ─── Global Search (Event Registry) ──────────────────────
+
+class GlobalTag(Base):
+    __tablename__ = "global_tags"
+
+    id             = Column(Integer, primary_key=True, index=True)
+    user_id        = Column(Integer, ForeignKey("users.id"), nullable=False)
+    name           = Column(String(200), nullable=False)   # Türkçe görünen isim: "Okul Saldırıları"
+    query_en       = Column(String(500), nullable=False)   # İngilizce sorgu: "school attacks Turkey"
+    search_type    = Column(String(20), default="both")    # "events" | "articles" | "both"
+    lang_filter    = Column(Text, nullable=True)           # JSON: ["eng","deu"] — null = tümü
+    country_filter = Column(Text, nullable=True)           # JSON: ["US","GB","TR"] — null = tümü
+    created_at     = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    user     = relationship("User")
+    searches = relationship("GlobalSearch", back_populates="tag", cascade="all, delete-orphan")
+
+
+class GlobalSearch(Base):
+    __tablename__ = "global_searches"
+
+    id             = Column(Integer, primary_key=True, index=True)
+    user_id        = Column(Integer, ForeignKey("users.id"), nullable=False)
+    query_text     = Column(String(500), nullable=False)       # kullanıcının girdiği orijinal metin
+    query_translated = Column(String(500), nullable=True)      # İngilizceye çevrilmiş hali
+    lang_detected  = Column(String(10), nullable=True)         # tr, en, de ...
+    date_range_days = Column(Integer, default=30)              # kaç günlük arama
+    searched_at    = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    event_count    = Column(Integer, default=0)
+    article_count  = Column(Integer, default=0)
+    tokens_used    = Column(Integer, default=0)
+
+    tag_id   = Column(Integer, ForeignKey("global_tags.id"), nullable=True)
+
+    user     = relationship("User")
+    tag      = relationship("GlobalTag", back_populates="searches")
+    events   = relationship("GlobalEvent",   back_populates="search", cascade="all, delete-orphan")
+    articles = relationship("GlobalArticle", back_populates="search", cascade="all, delete-orphan")
+
+
+class GlobalEvent(Base):
+    __tablename__ = "global_events"
+
+    id              = Column(Integer, primary_key=True, index=True)
+    search_id       = Column(Integer, ForeignKey("global_searches.id"), nullable=False)
+    event_uri       = Column(String(200), nullable=True)
+    title           = Column(String(500), nullable=False)
+    summary         = Column(Text, nullable=True)
+    event_date      = Column(String(20), nullable=True)        # "2026-04-20"
+    sentiment       = Column(Float, nullable=True)             # -1.0 ile 1.0 arası
+    article_count   = Column(Integer, default=0)
+    source_countries = Column(Text, nullable=True)             # JSON: ["US","GB","DE"]
+    sources         = Column(Text, nullable=True)              # JSON: ["BBC","Reuters"]
+    concepts        = Column(Text, nullable=True)              # JSON: ["Yusuf Tekin","Turkey"]
+    categories      = Column(Text, nullable=True)              # JSON: ["Education","Politics"]
+    image_url       = Column(String(1000), nullable=True)
+
+    search   = relationship("GlobalSearch", back_populates="events")
+    articles = relationship("GlobalArticle", back_populates="event", cascade="all, delete-orphan")
+
+
+class GlobalArticle(Base):
+    __tablename__ = "global_articles"
+
+    id           = Column(Integer, primary_key=True, index=True)
+    search_id    = Column(Integer, ForeignKey("global_searches.id"), nullable=False)
+    event_id     = Column(Integer, ForeignKey("global_events.id"), nullable=True)
+    article_uri  = Column(String(200), nullable=True)
+    title        = Column(String(500), nullable=False)
+    body         = Column(Text, nullable=True)
+    source_name  = Column(String(200), nullable=True)
+    source_url   = Column(String(1000), nullable=True)
+    url          = Column(String(1000), nullable=True)
+    published_at = Column(String(30), nullable=True)
+    sentiment    = Column(Float, nullable=True)
+    language     = Column(String(10), nullable=True)
+    image_url    = Column(String(1000), nullable=True)
+
+    search = relationship("GlobalSearch", back_populates="articles")
+    event  = relationship("GlobalEvent",  back_populates="articles")

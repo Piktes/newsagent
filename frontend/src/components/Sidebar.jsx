@@ -5,13 +5,14 @@ import { tagsApi, newsApi } from '../services/api';
 import {
   Newspaper, Calendar, Star, Tags, Bell, EyeOff,
   BarChart, Users, FileText, Zap, LogOut, Sun, Moon, Gauge, Radio,
-  MessageSquare, AlertTriangle, Wrench
+  MessageSquare, AlertTriangle, Wrench, Globe
 } from 'lucide-react';
 
 const NAV_ITEMS = [
   { path: '/son-dakika', icon: <Zap size={18} style={{ color: '#ef4444' }} />, label: 'Son Dakika', key: 'breaking' },
   { path: '/', icon: <Newspaper size={18} />, label: 'Haberler', key: 'news' },
   { path: '/today', icon: <Calendar size={18} />, label: 'Bugün Ne Oldu', key: 'today' },
+  { path: '/admin/global', icon: <Globe size={18} />, label: 'Global Analiz', key: 'global', adminOnly: true },
   { path: '/favorites', icon: <Star size={18} />, label: 'Favoriler', key: 'favs' },
   { path: '/hidden', icon: <EyeOff size={18} />, label: 'Akıştan Çıkarılanlar', key: 'hidden' },
   { path: '/tags', icon: <Tags size={18} />, label: 'Etiketler', key: 'tags' },
@@ -113,7 +114,7 @@ export default function Sidebar({ collapsed, onToggle, isDarkTheme, toggleTheme 
       <nav className="sidebar-nav">
         <div className="nav-section">
           {!collapsed && <span className="nav-section-title">MENÜ</span>}
-          {NAV_ITEMS.filter(item => !(item.userOnly && isAdmin)).map(item => (
+          {NAV_ITEMS.filter(item => !(item.userOnly && isAdmin) && !(item.adminOnly && !isAdmin)).map(item => (
             <NavLink
               key={item.path}
               to={item.path}

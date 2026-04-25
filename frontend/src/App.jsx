@@ -20,6 +20,7 @@ import ChangePasswordPage from './pages/ChangePasswordPage';
 import FeedbackPage from './pages/FeedbackPage';
 import AdminFeedbackPage from './pages/AdminFeedbackPage';
 import AdminErrorLogsPage from './pages/AdminErrorLogsPage';
+import GlobalSearchPage from './pages/GlobalSearchPage';
 
 function ProtectedRoute({ children, adminOnly = false }) {
   const { user, loading, isAdmin } = useAuth();
@@ -120,6 +121,7 @@ function AppLayout({ isDarkTheme, toggleTheme }) {
           <Route path="/admin/quota" element={<ProtectedRoute adminOnly><QuotaPage /></ProtectedRoute>} />
           <Route path="/admin/feedback" element={<ProtectedRoute adminOnly><AdminFeedbackPage /></ProtectedRoute>} />
           <Route path="/admin/error-logs" element={<ProtectedRoute adminOnly><AdminErrorLogsPage /></ProtectedRoute>} />
+          <Route path="/admin/global" element={<ProtectedRoute adminOnly><GlobalSearchPage /></ProtectedRoute>} />
         </Routes>
         <footer style={{
           marginTop: 'auto', flexShrink: 0,

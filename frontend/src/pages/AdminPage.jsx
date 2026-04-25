@@ -51,7 +51,7 @@ export default function AdminPage() {
   }, {});
 
   return (
-    <div className="dashboard-page">
+    <div className="dashboard-page admin-page">
       <div className="page-header">
         <h1 style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           <BarChart2 size={26} /> Yönetim Paneli

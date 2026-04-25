@@ -323,7 +323,7 @@ export default function QuotaPage() {
   });
 
   return (
-    <div className="dashboard-page">
+    <div className="dashboard-page admin-page">
       <div className="page-header">
         <h1><Gauge size={24} /> API Kotası</h1>
       </div>

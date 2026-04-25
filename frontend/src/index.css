@@ -84,6 +84,10 @@
   --radius-pill: 9999px;
 
   --transition: all 0.15s ease;
+
+  /* Global Analiz banner */
+  --global-banner-bg:     rgba(0, 112, 243, 0.10);
+  --global-banner-border: rgba(0, 112, 243, 0.25);
 }
 
 /* ─── Light Theme ────────────────────────────────── */
@@ -126,6 +130,10 @@ body.light-theme {
 
   --border:       rgba(0, 0, 0, 0.08);
   --border-hover: rgba(0, 0, 0, 0.16);
+
+  /* Global Analiz banner */
+  --global-banner-bg:     rgba(0, 112, 243, 0.06);
+  --global-banner-border: rgba(0, 112, 243, 0.18);
 }
 
 /* ─── Reset ──────────────────────────────────────── */
@@ -475,12 +483,12 @@ body.light-theme .sidebar-user-top {
   overflow: hidden;
   background: linear-gradient(
     135deg,
-    #151d35,
-    #1e2d52,
-    #162840,
-    #1a2e3a,
-    #1e2a50,
-    #151d35
+    #0f0c29,
+    #1a1a4e,
+    #0d2137,
+    #0a3d2b,
+    #1a1a4e,
+    #0f0c29
   );
   background-size: 400% 400%;
   animation: gradient-wave 12s ease infinite;
@@ -489,12 +497,12 @@ body.light-theme .sidebar-user-top {
 body.light-theme .login-page {
   background: linear-gradient(
     135deg,
-    #d8d8da,
-    #e2e2e4,
-    #d4d4d6,
-    #dcdcde,
-    #d6d6d8,
-    #d8d8da
+    #e0eaff,
+    #f0e6ff,
+    #dff4f0,
+    #fef3e2,
+    #e8f4fd,
+    #e0eaff
   );
   background-size: 400% 400%;
   animation: gradient-wave 12s ease infinite;
@@ -513,18 +521,18 @@ body.light-theme .login-page {
   z-index: 1;
   width: 400px;
   padding: 2.5rem;
-  background: rgba(22, 28, 50, 0.60);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.10);
-  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.35);
+  background: rgba(15, 18, 30, 0.55);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.4);
   border-radius: var(--radius-lg);
 }
 
 body.light-theme .login-card {
-  background: rgba(255, 255, 255, 0.70);
-  border: 1px solid rgba(255, 255, 255, 0.85);
-  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.10);
+  background: rgba(255, 255, 255, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.12);
 }
 
 .login-logo {
@@ -806,6 +814,11 @@ body.light-theme .btn-fetch:hover:not(:disabled) {
   max-width: 1100px;
   margin: 0 auto;
   animation: fadeIn 0.2s ease;
+}
+
+.dashboard-page.admin-page {
+  max-width: none !important;
+  margin: 0 !important;
 }
 
 
