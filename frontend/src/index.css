@@ -808,10 +808,10 @@ body.light-theme .btn-fetch:hover:not(:disabled) {
   animation: fadeIn 0.2s ease;
 }
 
-/* Admin sayfaları tam genişlik */
+/* Admin sayfaları — 10/12 kolon genişliği */
 .admin-page {
-  max-width: 100%;
-  margin: 0;
+  max-width: 83.33%;
+  margin: 0 auto;
 }
 
 @keyframes fadeIn {
