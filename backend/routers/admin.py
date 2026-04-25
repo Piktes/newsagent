@@ -180,7 +180,8 @@ def get_er_quota(
         res = requests.post(
             "https://eventregistry.org/api/v1/usage",
             json={"apiKey": ER_API_KEY},
-            timeout=8
+            timeout=8,
+            verify=False,
         )
         data = res.json()
         total = data.get("availableTokens", 0)
