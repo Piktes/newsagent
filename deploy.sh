@@ -13,12 +13,9 @@ VENV_DIR="$APP_DIR/backend/venv"
 FRONTEND_DIR="$APP_DIR/frontend"
 BACKEND_DIR="$APP_DIR/backend"
 
-# DB — @ işareti URL'de %40 olarak encode edilmiştir
-DB_HOST="localhost"
-DB_NAME="haberajani"
-DB_USER="haberajani"
-DB_PASS='REMOVED'
-DATABASE_URL="mysql+pymysql://${DB_USER}:${DB_PASS}@${DB_HOST}/${DB_NAME}"
+# DB bağlantısı — script çalışırken sorulur
+read -rsp "MySQL şifresi (haberajani kullanıcısı): " DB_PASS; echo ""
+DATABASE_URL="mysql+pymysql://haberajani:${DB_PASS}@localhost/haberajani"
 # ─────────────────────────────────────────────────────────────────────────────
 
 GREEN='\033[0;32m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; NC='\033[0m'
