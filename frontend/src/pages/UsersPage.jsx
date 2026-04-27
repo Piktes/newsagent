@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import { authApi } from '../services/api';
-import { Users } from 'lucide-react';
+import { Users, Info } from 'lucide-react';
 
 export default function UsersPage() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ username: '', email: '', password: '', role: 'user' });
+  const [form, setForm] = useState({ username: '', emailPrefix: '', role: 'user' });
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -24,8 +24,13 @@ export default function UsersPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await authApi.createUser(form);
-      setForm({ username: '', email: '', password: '', role: 'user' });
+      await authApi.createUser({
+        username: form.username,
+        email: `${form.emailPrefix}@meb.gov.tr`,
+        role: form.role,
+        password: '123456',
+      });
+      setForm({ username: '', emailPrefix: '', role: 'user' });
       setShowForm(false);
       fetchUsers();
     } catch (err) {
@@ -66,9 +71,32 @@ export default function UsersPage() {
     <div className="dashboard-page admin-page">
       <div className="page-header">
         <h1 style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}><Users size={28} /> Kullanıcı Yönetimi</h1>
-        <button className="btn btn-primary" onClick={() => { setShowForm(!showForm); setEditId(null); setForm({ username: '', password: '', role: 'user' }); }}>
+        <button className="btn btn-primary" onClick={() => { setShowForm(!showForm); setForm({ username: '', emailPrefix: '', role: 'user' }); }}>
           {showForm ? '✕ İptal' : '+ Yeni Kullanıcı'}
         </button>
+      </div>
+
+      {/* Bilgi Paneli */}
+      <div style={{
+        background: 'rgba(59,130,246,0.07)',
+        border: '1px solid rgba(59,130,246,0.2)',
+        borderRadius: 'var(--radius-sm)',
+        padding: '1rem 1.25rem',
+        marginBottom: '1.25rem',
+        fontSize: '0.85rem',
+        color: 'var(--text-secondary)',
+        lineHeight: 1.7,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+          <Info size={15} style={{ color: 'var(--accent)', flexShrink: 0 }} />
+          <strong style={{ color: 'var(--text-primary)', fontSize: '0.9rem' }}>Kullanıcı hesapları hakkında</strong>
+        </div>
+        <ul style={{ margin: 0, paddingLeft: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+          <li>Eklenen kullanıcı sisteme <strong>e-posta adresiyle</strong> giriş yapar (ör. <code style={{ background: 'rgba(0,0,0,0.1)', padding: '0 4px', borderRadius: 3 }}>ad.soyad@meb.gov.tr</code>).</li>
+          <li>İlk giriş şifresi otomatik olarak <strong>123456</strong> atanır; kullanıcı giriş sonrasında şifresini değiştirmek zorunda kalır.</li>
+          <li>Şifre sıfırlamak için tablodaki <strong>🔑</strong> butonunu kullanın — şifre tekrar 123456 yapılır.</li>
+          <li>Hesabı geçici olarak kapatmak için <strong>Durum</strong> sütunundaki toggle'ı kapatın.</li>
+        </ul>
       </div>
 
       {showForm && (
@@ -77,17 +105,40 @@ export default function UsersPage() {
           <div className="form-row">
             <div className="form-group flex-1">
               <label>Kullanıcı Adı</label>
-              <input type="text" value={form.username} onChange={(e) => setForm({...form, username: e.target.value})} required minLength={3} />
+              <input
+                type="text"
+                value={form.username}
+                onChange={(e) => setForm({...form, username: e.target.value})}
+                placeholder="ör: ahmet.yilmaz"
+                required
+                minLength={3}
+              />
             </div>
             <div className="form-group flex-1">
               <label>E-posta</label>
-              <input type="email" value={form.email} onChange={(e) => setForm({...form, email: e.target.value})} required />
-            </div>
-          </div>
-          <div className="form-row">
-            <div className="form-group flex-1">
-              <label>Şifre</label>
-              <input type="password" value={form.password} onChange={(e) => setForm({...form, password: e.target.value})} required minLength={6} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
+                <input
+                  type="text"
+                  value={form.emailPrefix}
+                  onChange={(e) => setForm({...form, emailPrefix: e.target.value})}
+                  placeholder="ad.soyad"
+                  required
+                  style={{ borderRadius: 'var(--radius-sm) 0 0 var(--radius-sm)', flex: 1 }}
+                />
+                <span style={{
+                  padding: '0 0.625rem',
+                  height: '36px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  background: 'var(--bg-secondary)',
+                  border: '1px solid var(--border)',
+                  borderLeft: 'none',
+                  borderRadius: '0 var(--radius-sm) var(--radius-sm) 0',
+                  fontSize: '0.85rem',
+                  color: 'var(--text-muted)',
+                  whiteSpace: 'nowrap',
+                }}>@meb.gov.tr</span>
+              </div>
             </div>
             <div className="form-group">
               <label>Rol</label>

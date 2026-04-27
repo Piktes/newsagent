@@ -54,8 +54,16 @@ export const tagsApi = {
   create: (data) => api.post('/tags/', data),
   update: (id, data) => api.put(`/tags/${id}`, data),
   delete: (id) => api.delete(`/tags/${id}`),
-  scan: (id, daysBack = 30) => api.post(`/tags/${id}/scan?days_back=${daysBack}`),
-  scanAll: (daysBack = 30) => api.post(`/tags/scan-all?days_back=${daysBack}`),
+  scan: (id, daysBack = 30, sourceTypes = null) => {
+    const params = new URLSearchParams({ days_back: daysBack });
+    if (sourceTypes && sourceTypes.length) sourceTypes.forEach(t => params.append('source_types', t));
+    return api.post(`/tags/${id}/scan?${params}`);
+  },
+  scanAll: (daysBack = 30, sourceTypes = null) => {
+    const params = new URLSearchParams({ days_back: daysBack });
+    if (sourceTypes && sourceTypes.length) sourceTypes.forEach(t => params.append('source_types', t));
+    return api.post(`/tags/scan-all?${params}`);
+  },
 };
 
 // ─── Sources ──────────────────────────────────────────

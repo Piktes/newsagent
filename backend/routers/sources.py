@@ -204,7 +204,7 @@ def get_twitter_trends(
         name_norm = _norm(name)
         matching = [
             t.name for t in user_tags
-            if _norm(t.name) in name_norm or name_norm in _norm(t.name)
+            if _norm(t.must_phrase or t.name) in name_norm or name_norm in _norm(t.must_phrase or t.name)
         ]
         trends.append({
             "trend_name": name,

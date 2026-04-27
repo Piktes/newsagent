@@ -79,10 +79,16 @@ def normalize_turkish(text: str) -> str:
     return text.lower()
 
 
-def scan_for_user_tag(user_id: int, tag_id: int, source_id: Optional[int] = None, days_back: int = 30) -> int:
-    """Scan news for a specific user's tag. Returns total items found."""
+def scan_for_user_tag(user_id: int, tag_id: int, source_id: Optional[int] = None, days_back: int = 30, source_types: Optional[list] = None) -> int:
+    """Scan news for a specific user's tag. Returns total items found.
+    source_types: list of source type strings to limit scan (e.g. ['twitter','newsapi']).
+                  None means scan all sources.
+    """
     db: Session = SessionLocal()
     total_found = 0
+    # Normalize: None or empty list → scan everything
+    filter_types = set(source_types) if source_types else None
+
     try:
         tag = db.query(Tag).filter(Tag.id == tag_id).first()
         if not tag:
@@ -104,6 +110,10 @@ def scan_for_user_tag(user_id: int, tag_id: int, source_id: Optional[int] = None
                 NewsSource.is_active == True
             ).all()
 
+        # Filter custom sources by requested source_types
+        if filter_types:
+            sources = [s for s in sources if s.type.value in filter_types]
+
         # Check if tag is currently trending on Twitter/X (Turkey, WOEID=23424969)
         tag_is_trending = False
         try:
@@ -114,18 +124,28 @@ def scan_for_user_tag(user_id: int, tag_id: int, source_id: Optional[int] = None
         except Exception:
             pass
 
-        # Always run NewsAPI.ai (EventRegistry) as system engine
+        # Run NewsAPI.ai (EventRegistry) — only if not filtered out
         from config import ER_API_KEY
-        if ER_API_KEY:
+        run_er = filter_types is None or 'newsapi' in filter_types
+        if ER_API_KEY and run_er:
             er_engine = NewsApiEngine(api_key=ER_API_KEY, user_id=user_id, username=username)
             total_found += _scan_with_engine(db, er_engine, tag, user_id, None, days_back=days_back, is_trending=tag_is_trending)
 
-        # If no custom sources, also use free engines
-        if not sources:
-            total_found += _scan_with_engine(db, RssEngine(), tag, user_id, None, is_trending=tag_is_trending)
-            total_found += _scan_with_engine(db, YoutubeEngine(), tag, user_id, None, is_trending=tag_is_trending)
-            total_found += _scan_with_engine(db, WebEngine(), tag, user_id, None, is_trending=tag_is_trending)
-            total_found += _scan_with_engine(db, TwitterEngine(), tag, user_id, None, is_trending=tag_is_trending)
+        # If no custom sources, use free engines (filtered by source_types)
+        all_user_sources = db.query(NewsSource).filter(
+            NewsSource.user_id == user_id,
+            NewsSource.is_active == True
+        ).all()
+        if not all_user_sources:
+            free_engines = [
+                ('rss',     RssEngine()),
+                ('youtube', YoutubeEngine()),
+                ('web',     WebEngine()),
+                ('twitter', TwitterEngine()),
+            ]
+            for etype, engine in free_engines:
+                if filter_types is None or etype in filter_types:
+                    total_found += _scan_with_engine(db, engine, tag, user_id, None, is_trending=tag_is_trending)
         else:
             for source in sources:
                 engine = _get_engine(source, user_id=user_id, username=username)

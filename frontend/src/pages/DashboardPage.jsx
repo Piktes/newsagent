@@ -350,9 +350,11 @@ export default function DashboardPage() {
     setShowPlatformPopup(false);
     setScanning(true);
     const preScanFetchedAt = lastFetchedAt;
+    const allSelected = platforms.length === SOURCE_OPTIONS.length;
+    const scanTypes = allSelected ? null : platforms;
     try {
-      if (tagFilter && tagFilter !== '') await tagsApi.scan(tagFilter, 30);
-      else await tagsApi.scanAll(30);
+      if (tagFilter && tagFilter !== '') await tagsApi.scan(tagFilter, 30, scanTypes);
+      else await tagsApi.scanAll(30, scanTypes);
     } catch (e) {}
     // Poll /latest-id until last_fetched_at changes → scan complete
     let attempts = 0;
