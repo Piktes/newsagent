@@ -15,7 +15,9 @@ BACKEND_DIR="$APP_DIR/backend"
 
 # DB bağlantısı — script çalışırken sorulur
 read -rsp "MySQL şifresi (haberajani kullanıcısı): " DB_PASS; echo ""
-DATABASE_URL="mysql+pymysql://haberajani:${DB_PASS}@localhost/haberajani"
+# @ karakterini URL-encode et (%40), aksi halde pymysql host'u yanlış parse eder
+DB_PASS_ENCODED="${DB_PASS//@/%40}"
+DATABASE_URL="mysql+pymysql://haberajani:${DB_PASS_ENCODED}@localhost/haberajani"
 # ─────────────────────────────────────────────────────────────────────────────
 
 GREEN='\033[0;32m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; NC='\033[0m'
