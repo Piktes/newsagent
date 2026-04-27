@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { Sun, Moon, Eye, EyeOff } from 'lucide-react';
 
@@ -120,6 +120,12 @@ export default function LoginPage({ isDarkTheme, toggleTheme }) {
               <button type="submit" className="login-btn" disabled={loading}>
                 {loading ? <span className="spinner" /> : 'Giriş Yap'}
               </button>
+
+              <div style={{ textAlign: 'center', marginTop: '0.75rem' }}>
+                <Link to="/forgot-password" style={{ color: 'var(--accent)', fontSize: '0.875rem', textDecoration: 'none' }}>
+                  Şifremi Unuttum
+                </Link>
+              </div>
             </form>
 
             <div className="login-footer-note">

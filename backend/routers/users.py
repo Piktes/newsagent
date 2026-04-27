@@ -3,12 +3,15 @@ Haberajani - Users Router
 Login, user CRUD, admin-only operations.
 """
 import re
+import secrets
+from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel, EmailStr
 from sqlalchemy.orm import Session
 from typing import List
 
 from database import get_db
-from models import User, UserRole
+from models import User, UserRole, PasswordResetToken
 from schemas import LoginRequest, TokenResponse, UserCreate, UserUpdate, UserResponse, ChangePasswordRequest
 from auth import (
     hash_password, verify_password, create_access_token,
@@ -168,3 +171,70 @@ def delete_user(
 
     db.delete(user)
     db.commit()
+
+
+# ─── Forgot / Reset Password ─────────────────────────────
+
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+
+@router.post("/forgot-password", status_code=200)
+def forgot_password(data: ForgotPasswordRequest, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == data.email).first()
+    # Always return success to avoid email enumeration
+    if not user or not user.is_active:
+        return {"detail": "Eğer bu e-posta kayıtlıysa sıfırlama bağlantısı gönderildi"}
+
+    # Invalidate any existing tokens for this user
+    db.query(PasswordResetToken).filter(
+        PasswordResetToken.user_id == user.id,
+        PasswordResetToken.used == False  # noqa: E712
+    ).update({"used": True})
+
+    token_value = secrets.token_urlsafe(64)
+    reset_token = PasswordResetToken(
+        token=token_value,
+        user_id=user.id,
+        expires_at=datetime.now(timezone.utc) + timedelta(minutes=15),
+    )
+    db.add(reset_token)
+    db.commit()
+
+    try:
+        from utils.email import send_password_reset_email
+        send_password_reset_email(user.email, token_value)
+    except Exception as e:
+        print(f"[ForgotPassword] E-posta gönderilemedi: {e}")
+        # Don't expose error details to client
+
+    return {"detail": "Eğer bu e-posta kayıtlıysa sıfırlama bağlantısı gönderildi"}
+
+
+@router.post("/reset-password/{token}", status_code=200)
+def reset_password_via_token(token: str, db: Session = Depends(get_db)):
+    now = datetime.now(timezone.utc)
+    record = db.query(PasswordResetToken).filter(
+        PasswordResetToken.token == token,
+        PasswordResetToken.used == False  # noqa: E712
+    ).first()
+
+    if not record:
+        raise HTTPException(status_code=400, detail="Geçersiz veya kullanılmış bağlantı")
+
+    expires = record.expires_at
+    if expires.tzinfo is None:
+        expires = expires.replace(tzinfo=timezone.utc)
+    if now > expires:
+        raise HTTPException(status_code=400, detail="Bağlantının süresi dolmuş (15 dakika)")
+
+    user = db.query(User).filter(User.id == record.user_id).first()
+    if not user:
+        raise HTTPException(status_code=400, detail="Kullanıcı bulunamadı")
+
+    user.password_hash = hash_password("123456")
+    user.must_change_password = True
+    record.used = True
+    db.commit()
+
+    return {"detail": "Şifreniz 123456 olarak sıfırlandı. Giriş sonrası yeni şifre belirlemeniz gerekecek."}

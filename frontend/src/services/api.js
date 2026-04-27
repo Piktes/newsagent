@@ -46,6 +46,8 @@ export const authApi = {
   updateUser: (id, data) => api.put(`/auth/users/${id}`, data),
   deleteUser: (id) => api.delete(`/auth/users/${id}`),
   resetUserPassword: (id) => api.post(`/auth/users/${id}/reset-password`),
+  forgotPassword: (email) => api.post('/auth/forgot-password', { email }),
+  resetPasswordWithToken: (token) => api.post(`/auth/reset-password/${token}`),
 };
 
 // ─── Tags ─────────────────────────────────────────────

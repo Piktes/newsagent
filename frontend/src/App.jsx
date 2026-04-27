@@ -21,6 +21,8 @@ import FeedbackPage from './pages/FeedbackPage';
 import AdminFeedbackPage from './pages/AdminFeedbackPage';
 import AdminErrorLogsPage from './pages/AdminErrorLogsPage';
 import GlobalSearchPage from './pages/GlobalSearchPage';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
 
 function ProtectedRoute({ children, adminOnly = false }) {
   const { user, loading, isAdmin } = useAuth();
@@ -174,6 +176,8 @@ export default function App() {
       <AuthProvider>
         <Routes>
           <Route path="/login" element={<LoginPage isDarkTheme={isDarkTheme} toggleTheme={toggleTheme} />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage isDarkTheme={isDarkTheme} toggleTheme={toggleTheme} />} />
+          <Route path="/reset-password/:token" element={<ResetPasswordPage isDarkTheme={isDarkTheme} toggleTheme={toggleTheme} />} />
           <Route path="/change-password" element={<ChangePasswordPage />} />
           <Route path="/*" element={<ProtectedRoute><AppLayout isDarkTheme={isDarkTheme} toggleTheme={toggleTheme} /></ProtectedRoute>} />
         </Routes>

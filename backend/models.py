@@ -350,3 +350,16 @@ class GlobalArticle(Base):
 
     search = relationship("GlobalSearch", back_populates="articles")
     event  = relationship("GlobalEvent",  back_populates="articles")
+
+
+class PasswordResetToken(Base):
+    __tablename__ = "password_reset_tokens"
+
+    id         = Column(Integer, primary_key=True, index=True)
+    token      = Column(String(128), unique=True, nullable=False, index=True)
+    user_id    = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    expires_at = Column(DateTime, nullable=False)
+    used       = Column(Boolean, default=False, nullable=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    user = relationship("User")
