@@ -30,11 +30,15 @@ echo "============================================="
 echo "  Haberajani Deploy — $(date '+%d.%m.%Y %H:%M')"
 echo "============================================="
 
-# ── 1. Git ───────────────────────────────────────────────────────────────────
+# ── 0. Ownership + Git ───────────────────────────────────────────────────────
+log "Dizin izinleri düzenleniyor..."
+chown -R "$(stat -c '%U' /opt)" /opt/haberajani 2>/dev/null || chown -R mebebs:mebebs "$APP_DIR"
+
 log "Kod güncelleniyor..."
 cd "$APP_DIR"
 git fetch origin
 git reset --hard origin/master
+chmod +x "$APP_DIR/deploy.sh"
 log "Güncel commit: $(git log -1 --format='%h — %s')"
 
 # ── 2. Python bağımlılıkları ─────────────────────────────────────────────────
