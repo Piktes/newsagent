@@ -183,39 +183,75 @@ def _scan_with_engine(db: Session, engine, tag: Tag, user_id: int, source: Optio
                             error_msg = "API kota aşıldı"
                             continue
 
+                # Arama sorgusunu oluştur: must_phrase + context_keywords (Google pre-filter için)
+                import json as _json
+                _must_raw  = tag.must_phrase or tag.name
+                _ctx_kw_list = _json.loads(tag.context_keywords or "[]") if tag.context_keywords else []
+                _ctx_oper    = getattr(tag, 'context_oper', 'or') or 'or'
+
+                # RSS/Web/YouTube/Twitter için arama sorgusunu oluştur:
+                # - off: context yalnızca aramada kullanılmaz, sadece must_phrase gider
+                # - and: tüm context keyword'ler sorguya eklenir
+                # - or + tek keyword: keyword'ü sorguya ekle
+                # - or + birden fazla keyword: Google hepsini AND yapacağından sadece must_phrase gider
+                if _ctx_kw_list and _ctx_oper != 'off' and (_ctx_oper == 'and' or len(_ctx_kw_list) == 1):
+                    _ctx_str = ' '.join(f'"{kw}"' if ' ' in kw else kw for kw in _ctx_kw_list)
+                    _search_query = f'"{normalize_turkish(_must_raw)}" {_ctx_str}'
+                else:
+                    _search_query = _must_raw
+
                 src_label = f"{source.type.value}:{source.url[:40]}" if source else engine.get_engine_name()
-                print(f"[Scheduler] Taranıyor: {src_label} — etiket='{tag.name}' lang={lang}")
+                print(f"[Scheduler] Taranıyor: {src_label} — sorgu='{_search_query}' lang={lang}")
                 if source and source.type == SourceType.RSS and source.url:
                     results = engine.parse_custom_feed(source.url, max_results=50)
                 elif source and source.type == SourceType.TWITTER and source.url:
                     from engines.twitter_engine import TwitterEngine as _TW
                     if isinstance(engine, _TW):
-                        results = engine.search_account(source.url, tag.name, language=lang, max_results=20)
+                        results = engine.search_account(source.url, _search_query, language=lang, max_results=20)
                     else:
-                        results = engine.search(tag.name, language=lang)
+                        results = engine.search(_search_query, language=lang)
                 elif source and source.type == SourceType.YOUTUBE and source.url:
                     from engines.youtube_engine import YoutubeEngine as _YT
                     if isinstance(engine, _YT):
-                        results = engine.search_channel(source.url, tag.name, language=lang, max_results=20)
+                        results = engine.search_channel(source.url, _search_query, language=lang, max_results=20)
                     else:
-                        results = engine.search(tag.name, language=lang)
+                        results = engine.search(_search_query, language=lang)
                 else:
                     from engines.newsapi_engine import NewsApiEngine as _ER
+                    import json as _json
+                    _ctx_kw = _json.loads(tag.context_keywords or "[]") if tag.context_keywords else None
                     if isinstance(engine, _ER):
-                        results = engine.search(tag.name, language=lang, days_back=days_back)
+                        results = engine.search(
+                            tag.name, language=lang, max_results=100, days_back=days_back,
+                            must_phrase=tag.must_phrase or None,
+                            context_keywords=_ctx_kw,
+                        )
                     else:
-                        results = engine.search(tag.name, language=lang)
+                        results = engine.search(_search_query, language=lang)
 
                 print(f"[Scheduler] {src_label}: {len(results)} sonuç döndü")
                 for r in results:
-                    # Relevance check: skip for newsapi (EventRegistry handles relevance internally)
-                    if engine.get_engine_name() != "newsapi":
-                        from engines.newsapi_engine import normalize_query as _nq
-                        tag_phrase = normalize_turkish(_nq(tag.name))
-                        title_lower = normalize_turkish(r.title or "")
-                        summary_lower = normalize_turkish(r.summary or "")
-                        if tag_phrase not in title_lower and tag_phrase not in summary_lower:
-                            continue
+                    # Relevance check — tüm engine'lere (ER dahil) uygulanır
+                    import json as _json
+                    from engines.newsapi_engine import normalize_query as _nq
+                    combined_text = normalize_turkish(r.title or "") + " " + normalize_turkish(r.summary or "")
+
+                    # must_phrase tam ifade olarak aranır (sıralı, yan yana)
+                    must = normalize_turkish(_nq(tag.must_phrase or tag.name))
+                    must_ok = must in combined_text
+
+                    # context_keywords her biri kendi içinde tam ifade — oper'e göre filtrele
+                    ctx_kw = _json.loads(tag.context_keywords or "[]") if tag.context_keywords else []
+                    ctx_oper = getattr(tag, 'context_oper', 'or') or 'or'
+                    if not ctx_kw or ctx_oper == 'off':
+                        context_ok = True
+                    elif ctx_oper == 'and':
+                        context_ok = all(normalize_turkish(kw) in combined_text for kw in ctx_kw)
+                    else:
+                        context_ok = any(normalize_turkish(kw) in combined_text for kw in ctx_kw)
+
+                    if not (must_ok and context_ok):
+                        continue
 
                     url_h = _url_hash(r.url)
                     # Duplicate detection: per tag (same URL can appear under different tags)
@@ -252,7 +288,7 @@ def _scan_with_engine(db: Session, engine, tag: Tag, user_id: int, source: Optio
 
                     news_item = NewsItem(
                         title=(r.title or '')[:500],
-                        summary=(r.summary or '')[:4000],
+                        summary=(r.summary or ''),
                         url=r.url,
                         url_hash=url_h,
                         source_name=r.source_name,
@@ -299,15 +335,19 @@ def _scan_with_engine(db: Session, engine, tag: Tag, user_id: int, source: Optio
 
     # Log the scan
     duration = time.time() - start_time
-    log = ScanLog(
-        source_id=source.id if source else 0,
-        status=status,
-        error_message=error_msg,
-        items_found=items_found,
-        duration_seconds=round(duration, 2)
-    )
-    db.add(log)
-    db.commit()
+    try:
+        log = ScanLog(
+            source_id=source.id if source else 0,
+            status=status,
+            error_message=error_msg,
+            items_found=items_found,
+            duration_seconds=round(duration, 2)
+        )
+        db.add(log)
+        db.commit()
+    except Exception as _log_err:
+        db.rollback()
+        print(f"[Scheduler] ScanLog kaydedilemedi (önemsiz): {_log_err}")
 
     if items_found > 0:
         print(f"[Scheduler] [OK] {tag.name}: {items_found} yeni haber bulundu")

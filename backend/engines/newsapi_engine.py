@@ -45,20 +45,33 @@ class NewsApiEngine(BaseNewsEngine):
         self.user_id = user_id
         self.username = username
 
-    def search(self, query: str, language: str = "tr", max_results: int = 20, days_back: int = 30) -> List[NewsResult]:
+    def search(
+        self,
+        query: str,
+        language: str = "tr",
+        max_results: int = 100,
+        days_back: int = 30,
+        must_phrase: str = None,
+        context_keywords: list = None,
+    ) -> List[NewsResult]:
         if not self.api_key:
             return []
 
         lang_code = _LANG_MAP.get(language, "tur")
         date_start = (datetime.now(timezone.utc) - timedelta(days=days_back)).strftime("%Y-%m-%d")
-        phrase = normalize_query(query)
+
+        # must_phrase varsa onu kullan, yoksa tag adını kullan
+        search_text = normalize_query(must_phrase if must_phrase else query)
+        # Tam ifade olarak gönder — tek öğeli dizi ER'de phrase araması yapar
+        keywords = [search_text]
 
         results = []
         try:
             payload = {
                 "apiKey": self.api_key,
-                "keyword": phrase,
-                "keywordSearchMode": "exact",
+                "keyword": keywords,
+                "keywordOper": "and",
+                "keywordLoc": "title,body",
                 "lang": lang_code,
                 "dateStart": date_start,
                 "count": min(max_results, 100),
@@ -69,7 +82,7 @@ class NewsApiEngine(BaseNewsEngine):
                 "includeArticleBody": True,
                 "includeArticleImage": True,
                 "includeArticleEventUri": False,
-                "articleBodyLen": 300,
+                "articleBodyLen": -1,
             }
 
             resp = requests.post(f"{ER_BASE}/article/getArticles", json=payload, timeout=15)
@@ -96,14 +109,14 @@ class NewsApiEngine(BaseNewsEngine):
                 results.append(NewsResult(
                     title=title_text,
                     url=url,
-                    summary=summary_text[:300] if summary_text else None,
+                    summary=summary_text if summary_text else None,
                     source_name=source_name,
                     thumbnail=image,
                     published_at=published_at,
                 ))
 
             _log_usage(self.user_id, self.username,
-                       f'Arama: "{phrase}" ({lang_code}, {len(articles)} makale, {len(results)} sonuç)',
+                       f'Arama: "{" ".join(keywords)}" ({lang_code}, {len(articles)} makale, {len(results)} sonuç)',
                        tokens=1)
 
         except Exception as e:

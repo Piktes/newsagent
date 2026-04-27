@@ -85,7 +85,10 @@ class Tag(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(100), nullable=False)
-    color = Column(String(7), default="#3B82F6")  # hex color
+    must_phrase = Column(String(500), nullable=True)   # zorunlu arama ifadesi, AND mantığı
+    context_keywords = Column(Text, nullable=True)     # JSON: ["Bakan","Eğitim"]
+    context_oper = Column(String(10), default='or')    # 'or' = en az biri | 'and' = hepsi
+    color = Column(String(7), default="#3B82F6")
     language = Column(SqlEnum(Language), default=Language.BOTH)
     is_breaking = Column(Boolean, default=False)
     scan_interval_minutes = Column(Integer, default=30)
@@ -270,14 +273,16 @@ class SmtpSettings(Base):
 class GlobalTag(Base):
     __tablename__ = "global_tags"
 
-    id             = Column(Integer, primary_key=True, index=True)
-    user_id        = Column(Integer, ForeignKey("users.id"), nullable=False)
-    name           = Column(String(200), nullable=False)   # Türkçe görünen isim: "Okul Saldırıları"
-    query_en       = Column(String(500), nullable=False)   # İngilizce sorgu: "school attacks Turkey"
-    search_type    = Column(String(20), default="both")    # "events" | "articles" | "both"
-    lang_filter    = Column(Text, nullable=True)           # JSON: ["eng","deu"] — null = tümü
-    country_filter = Column(Text, nullable=True)           # JSON: ["US","GB","TR"] — null = tümü
-    created_at     = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    id                = Column(Integer, primary_key=True, index=True)
+    user_id           = Column(Integer, ForeignKey("users.id"), nullable=False)
+    name              = Column(String(200), nullable=False)  # görünen ad: "Bakan Yusuf TEKİN"
+    must_phrase       = Column(String(500), nullable=True)   # zorunlu ifade: "Yusuf Tekin"
+    context_keywords  = Column(Text, nullable=True)          # JSON: ["Bakan","Eğitim"] — en az biri
+    query_en          = Column(String(500), nullable=True)   # must_phrase'in İngilizce çevirisi (otomatik)
+    search_type       = Column(String(20), default="articles")
+    lang_filter       = Column(Text, nullable=True)          # JSON: ["eng","deu"] — null = tümü
+    country_filter    = Column(Text, nullable=True)          # JSON: ["US","GB"] — null = tümü
+    created_at        = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     user     = relationship("User")
     searches = relationship("GlobalSearch", back_populates="tag", cascade="all, delete-orphan")

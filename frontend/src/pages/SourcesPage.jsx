@@ -181,7 +181,8 @@ export default function SourcesPage() {
             Bir X hesabı ekleyin (ör. <code style={{ background: 'rgba(0,0,0,0.08)', padding: '0 4px', borderRadius: 3 }}>@ntv_haber</code>).
             Her tarama döngüsünde tanımlı tüm etiketler bu hesabın tweet'lerinde aranır.
             Arama X API v2 ile yapılır; sadece herkese açık hesaplar desteklenir.
-            Yeni tweet'ler gerçek zamanlı olarak habere dönüşür, aynı tweet tekrar eklenmez (URL kontrolü).
+            Yeni tweet'ler gerçek zamanlı olarak habere dönüşür, aynı tweet tekrar eklenmez (URL kontrolü).{' '}
+            <strong style={{ color: 'var(--text-primary)' }}>X API v2 limiti nedeniyle yalnızca son 7 günün tweet'leri taranır.</strong>
           </div>
           <div>
             <div style={{ fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.25rem' }}>
@@ -411,7 +412,10 @@ export default function SourcesPage() {
                   <div className="source-badges" style={{ margin: 0 }}>
                     {isYT
                       ? <span className="badge badge-green">📡 RSS</span>
-                      : <span className="badge badge-green">🔑 Bearer Token</span>
+                      : <>
+                          <span className="badge badge-green">🔑 Bearer Token</span>
+                          <span className="badge" style={{ background: 'rgba(245,158,11,0.12)', color: '#d97706', border: '1px solid rgba(245,158,11,0.25)' }}>📅 Son 7 gün</span>
+                        </>
                     }
                   </div>
                   <div className="source-actions" style={{ marginLeft: 'auto' }}>

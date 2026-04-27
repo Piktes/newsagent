@@ -2,7 +2,8 @@
 Haberajani - Pydantic Schemas
 Request/Response models for API endpoints.
 """
-from pydantic import BaseModel, EmailStr, Field
+import json as _json
+from pydantic import BaseModel, EmailStr, Field, field_validator
 from typing import Optional, List
 from datetime import datetime
 from models import UserRole, SourceType, Language, NotificationMethod, ScanStatus, TicketType, TicketStatus
@@ -58,6 +59,9 @@ class ChangePasswordRequest(BaseModel):
 
 class TagCreate(BaseModel):
     name: str = Field(min_length=1, max_length=100)
+    must_phrase: Optional[str] = None
+    context_keywords: Optional[List[str]] = None
+    context_oper: str = "or"               # 'or' | 'and'
     color: str = "#3B82F6"
     language: Language = Language.BOTH
     is_breaking: bool = False
@@ -66,6 +70,9 @@ class TagCreate(BaseModel):
 
 class TagUpdate(BaseModel):
     name: Optional[str] = None
+    must_phrase: Optional[str] = None
+    context_keywords: Optional[List[str]] = None
+    context_oper: Optional[str] = None
     color: Optional[str] = None
     language: Optional[Language] = None
     is_breaking: Optional[bool] = None
@@ -75,6 +82,9 @@ class TagUpdate(BaseModel):
 class TagResponse(BaseModel):
     id: int
     name: str
+    must_phrase: Optional[str] = None
+    context_keywords: Optional[List[str]] = None
+    context_oper: str = "or"
     color: str
     language: Language
     is_breaking: bool
@@ -83,6 +93,16 @@ class TagResponse(BaseModel):
     last_scan_items_found: Optional[int] = None
     user_id: int
     created_at: Optional[datetime] = None
+
+    @field_validator("context_keywords", mode="before")
+    @classmethod
+    def parse_context_keywords(cls, v):
+        if isinstance(v, str):
+            try:
+                return _json.loads(v)
+            except Exception:
+                return None
+        return v
 
     class Config:
         from_attributes = True

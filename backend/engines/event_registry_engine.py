@@ -146,9 +146,14 @@ def search_articles(
     count: int = 30,
     lang_filter: list[str] | None = None,
     country_filter: list[str] | None = None,
+    must_keywords: list[str] | None = None,
 ) -> dict:
     """Event Registry getArticles çağrısı — ham makaleler döndürür."""
     date_start, date_end = _date_range(date_range_days)
+
+    # must_keywords verilmişse dizi olarak gönder (AND mantığı), yoksa query string kullan
+    keyword_param = must_keywords if must_keywords else [query]
+
     params = {
         **_base_params(),
         "resultType":              "articles",
@@ -156,7 +161,7 @@ def search_articles(
         "articlesCount":           count,
         "articlesSortBy":          "date",
         "articlesSortByAsc":       False,
-        "keyword":                 query,
+        "keyword":                 keyword_param,
         "keywordLoc":              "title,body",
         "keywordOper":             "and",
         "dateStart":               date_start,

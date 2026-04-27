@@ -3,10 +3,21 @@ Haberajani - RSS News Engine
 Google News RSS and custom RSS feed parsing.
 """
 import feedparser
+import requests as _requests
 from typing import List
 from datetime import datetime
 from email.utils import parsedate_to_datetime
 from urllib.parse import quote_plus
+
+_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+
+
+def _fetch_feed(url: str):
+    try:
+        resp = _requests.get(url, headers={"User-Agent": _UA}, timeout=10)
+        return feedparser.parse(resp.content)
+    except Exception:
+        return feedparser.parse(url)
 
 from engines.base import BaseNewsEngine, NewsResult
 
@@ -33,7 +44,7 @@ class RssEngine(BaseNewsEngine):
             )
 
         try:
-            feed = feedparser.parse(url)
+            feed = _fetch_feed(url)
             for entry in feed.entries[:max_results]:
                 published = None
                 if hasattr(entry, 'published'):
@@ -54,7 +65,7 @@ class RssEngine(BaseNewsEngine):
                 summary = None
                 if hasattr(entry, 'summary'):
                     import re
-                    summary = re.sub(r'<[^>]+>', '', entry.summary)[:300]
+                    summary = re.sub(r'<[^>]+>', '', entry.summary)
 
                 # Extract original source URL from Google News entry
                 source_url = None
@@ -91,7 +102,7 @@ class RssEngine(BaseNewsEngine):
         """Parse a custom RSS feed URL."""
         results = []
         try:
-            feed = feedparser.parse(feed_url)
+            feed = _fetch_feed(feed_url)
             for entry in feed.entries[:max_results]:
                 published = None
                 if hasattr(entry, 'published'):
@@ -103,7 +114,7 @@ class RssEngine(BaseNewsEngine):
                 summary = None
                 if hasattr(entry, 'summary'):
                     import re
-                    summary = re.sub(r'<[^>]+>', '', entry.summary)[:300]
+                    summary = re.sub(r'<[^>]+>', '', entry.summary)
 
                 results.append(NewsResult(
                     title=entry.title,

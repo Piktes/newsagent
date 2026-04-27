@@ -56,19 +56,26 @@ class BaseNewsEngine(ABC):
     def _search_google_news_rss(query: str, max_results: int = 15, site_filter: Optional[str] = None, source_icon: str = "🌐") -> List[NewsResult]:
         """Search Google News RSS feed as a reliable fallback for blocked DuckDuckGo searches."""
         import feedparser
+        import requests as _req
         import urllib.parse
         from bs4 import BeautifulSoup
-        
+
+        _UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+
         results = []
         try:
             exact_q = BaseNewsEngine.exact_query(query)
             if site_filter:
                 exact_q += f" {site_filter}"
-                
+
             q = urllib.parse.quote(exact_q)
             url = f"https://news.google.com/rss/search?q={q}&hl=tr&gl=TR&ceid=TR:tr"
-            
-            feed = feedparser.parse(url)
+
+            try:
+                resp = _req.get(url, headers={"User-Agent": _UA}, timeout=10)
+                feed = feedparser.parse(resp.content)
+            except Exception:
+                feed = feedparser.parse(url)
             for entry in feed.entries[:max_results]:
                 summary_text = entry.get("summary", "")
                 if summary_text and "<" in summary_text:
@@ -85,7 +92,7 @@ class BaseNewsEngine(ABC):
                 results.append(NewsResult(
                     title=entry.get("title", ""),
                     url=entry.get("link", ""),
-                    summary=summary_text[:300] if summary_text else None,
+                    summary=summary_text if summary_text else None,
                     source_name=source_name,
                     published_at=entry.get("published"),
                     source_url=entry.get("link", "")

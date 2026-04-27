@@ -26,6 +26,7 @@ def list_tags(
 @router.post("/", response_model=TagResponse, status_code=201)
 def create_tag(
     data: TagCreate,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -35,8 +36,12 @@ def create_tag(
     if existing:
         raise HTTPException(status_code=400, detail="Bu etiket zaten mevcut")
 
+    import json as _json
     tag = Tag(
         name=data.name,
+        must_phrase=data.must_phrase or None,
+        context_keywords=_json.dumps(data.context_keywords) if data.context_keywords else None,
+        context_oper=data.context_oper or 'or',
         color=data.color,
         language=data.language,
         user_id=current_user.id
@@ -44,6 +49,8 @@ def create_tag(
     db.add(tag)
     db.commit()
     db.refresh(tag)
+
+    background_tasks.add_task(scan_for_user_tag, current_user.id, tag.id, None, 30)
     return tag
 
 
@@ -58,8 +65,15 @@ def update_tag(
     if not tag:
         raise HTTPException(status_code=404, detail="Etiket bulunamadı")
 
+    import json as _json
     if data.name is not None:
         tag.name = data.name
+    if data.must_phrase is not None:
+        tag.must_phrase = data.must_phrase or None
+    if data.context_keywords is not None:
+        tag.context_keywords = _json.dumps(data.context_keywords) if data.context_keywords else None
+    if data.context_oper is not None:
+        tag.context_oper = data.context_oper
     if data.color is not None:
         tag.color = data.color
     if data.language is not None:

@@ -55,15 +55,15 @@ class TwitterEngine(BaseNewsEngine):
             return []
         username = _extract_username(url_or_handle)
         if query:
-            q = f'"{query}" from:{username} -is:retweet'
+            q = f'"{query}" from:{username}'
         else:
             q = f'from:{username} -is:retweet'
         return self._run_search(client, q, max_results)
 
-    def _run_search(self, client, query: str, max_results: int = 20) -> List[NewsResult]:
+    def _run_search(self, client, query: str, max_results: int = 20, days_back: int = 7) -> List[NewsResult]:
         results = []
         try:
-            start_time = datetime.now(timezone.utc) - timedelta(days=7)
+            start_time = datetime.now(timezone.utc) - timedelta(days=days_back)
 
             response = client.search_recent_tweets(
                 query=query,

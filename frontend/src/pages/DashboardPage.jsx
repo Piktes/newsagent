@@ -9,6 +9,7 @@ import {
 import { FaYoutube, FaXTwitter } from 'react-icons/fa6';
 import { newsApi, tagsApi } from '../services/api';
 import NewsCard from '../components/NewsCard';
+import TrendsPanel from '../components/TrendsPanel';
 
 const SOURCE_OPTIONS = [
   { value: 'rss',         label: 'RSS / Haber',    Icon: Rss },
@@ -555,6 +556,9 @@ export default function DashboardPage() {
           </div>
         </div>
       )}
+
+      {/* Trendler */}
+      <TrendsPanel />
 
       {/* Haberleri Çek */}
       <button

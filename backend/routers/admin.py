@@ -97,6 +97,7 @@ def dashboard_overview(
     automations_q = (
         db.query(Tag, User.username, User.email)
         .join(User, User.id == Tag.user_id)
+        .filter(Tag.is_breaking == True)
         .order_by(User.username, Tag.scan_interval_minutes)
         .all()
     )
