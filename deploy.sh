@@ -81,7 +81,7 @@ systemctl is-active --quiet "$BACKEND_SERVICE" \
 # ── 5. Frontend build ────────────────────────────────────────────────────────
 log "Frontend build başlatılıyor..."
 cd "$FRONTEND_DIR"
-npm ci --silent
+npm install --silent
 npm run build
 log "Frontend build tamamlandı → dist/"
 
