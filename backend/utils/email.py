@@ -1,7 +1,7 @@
 """
 SMTP e-posta gönderme yardımcısı.
-Ortam değişkenlerinden ayarları okur:
-  SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM, APP_BASE_URL
+MEB relay sunucusu kimlik doğrulaması gerektirmez (port 25, STARTTLS).
+Ortam değişkenleri: SMTP_HOST, SMTP_PORT, SMTP_FROM, APP_BASE_URL
 """
 import os
 import smtplib
@@ -9,32 +9,22 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
 
-def _get_smtp_config():
-    return {
-        "host": os.getenv("SMTP_HOST", ""),
-        "port": int(os.getenv("SMTP_PORT", "587")),
-        "user": os.getenv("SMTP_USER", ""),
-        "password": os.getenv("SMTP_PASS", ""),
-        "from": os.getenv("SMTP_FROM", os.getenv("SMTP_USER", "")),
-    }
-
-
 def send_password_reset_email(to_email: str, token: str) -> None:
-    """Şifre sıfırlama bağlantısını kullanıcıya gönderir."""
-    cfg = _get_smtp_config()
-    if not cfg["host"]:
+    host = os.getenv("SMTP_HOST", "")
+    if not host:
         raise RuntimeError("SMTP_HOST ortam değişkeni tanımlanmamış")
 
+    port = int(os.getenv("SMTP_PORT", "25"))
+    from_addr = os.getenv("SMTP_FROM", "haberajani@meb.gov.tr")
     base_url = os.getenv("APP_BASE_URL", "http://localhost:5173")
     reset_link = f"{base_url}/reset-password/{token}"
 
     msg = MIMEMultipart("alternative")
     msg["Subject"] = "Haber Ajanı — Şifre Sıfırlama"
-    msg["From"] = cfg["from"]
+    msg["From"] = from_addr
     msg["To"] = to_email
 
-    html = f"""
-<!DOCTYPE html>
+    html = f"""<!DOCTYPE html>
 <html lang="tr">
 <head><meta charset="utf-8"></head>
 <body style="font-family:Arial,sans-serif;background:#f4f6fb;margin:0;padding:24px;">
@@ -61,12 +51,12 @@ def send_password_reset_email(to_email: str, token: str) -> None:
     </p>
   </div>
 </body>
-</html>
-"""
+</html>"""
+
     msg.attach(MIMEText(html, "html", "utf-8"))
 
-    with smtplib.SMTP(cfg["host"], cfg["port"], timeout=10) as server:
+    with smtplib.SMTP(host, port, timeout=10) as server:
         server.ehlo()
         server.starttls()
-        server.login(cfg["user"], cfg["password"])
-        server.sendmail(cfg["from"], [to_email], msg.as_string())
+        server.ehlo()
+        server.sendmail(from_addr, [to_email], msg.as_string())

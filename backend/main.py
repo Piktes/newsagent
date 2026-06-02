@@ -74,7 +74,7 @@ app.add_middleware(
         "http://localhost:3000",
         "http://127.0.0.1:5173",
         "http://127.0.0.1:5174",
-        "http://10.30.40.189",
+        
         "https://haberajani.meb.gov.tr",
         "http://haberajani.meb.gov.tr",
     ],
