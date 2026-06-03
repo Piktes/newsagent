@@ -44,14 +44,26 @@ def send_password_reset_email(to_email: str, token: str, smtp_cfg=None) -> None:
     <p>Hesabınız için bir şifre sıfırlama isteği aldık.</p>
     <p>Aşağıdaki butona tıklayarak şifrenizi sıfırlayabilirsiniz.
        Bağlantı <strong>15 dakika</strong> geçerlidir.</p>
-    <p style="text-align:center;margin:28px 0;">
+    <div style="text-align:center;margin:32px 0;">
+      <!--[if mso]>
+      <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word"
+        href="{reset_link}" style="height:44px;v-text-anchor:middle;width:220px;" arcsize="15%"
+        fillcolor="#2563eb" strokecolor="#2563eb">
+        <w:anchorlock/>
+        <center style="color:#ffffff;font-family:Arial,sans-serif;font-size:15px;font-weight:bold;">
+          Şifremi Sıfırla
+        </center>
+      </v:roundrect>
+      <![endif]-->
+      <!--[if !mso]><!-->
       <a href="{reset_link}"
-         style="background:#2563eb;color:#fff;padding:12px 28px;
-                border-radius:6px;text-decoration:none;font-weight:bold;
-                display:inline-block;">
+         style="background:#2563eb;color:#ffffff;padding:13px 36px;border-radius:6px;
+                text-decoration:none;font-weight:bold;font-size:15px;font-family:Arial,sans-serif;
+                display:inline-block;mso-hide:all;">
         Şifremi Sıfırla
       </a>
-    </p>
+      <!--<![endif]-->
+    </div>
     <p style="font-size:0.85em;color:#6b7280;">
       Bu isteği siz yapmadıysanız bu e-postayı dikkate almayınız.
     </p>
