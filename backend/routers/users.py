@@ -2,6 +2,7 @@
 Haberajani - Users Router
 Login, user CRUD, admin-only operations.
 """
+import os
 import re
 import secrets
 from datetime import datetime, timezone, timedelta
@@ -11,7 +12,7 @@ from sqlalchemy.orm import Session
 from typing import List
 
 from database import get_db
-from models import User, UserRole, PasswordResetToken
+from models import User, UserRole, PasswordResetToken, SmtpSettings
 from schemas import LoginRequest, TokenResponse, UserCreate, UserUpdate, UserResponse, ChangePasswordRequest
 from auth import (
     hash_password, verify_password, create_access_token,
@@ -182,6 +183,7 @@ class ForgotPasswordRequest(BaseModel):
 @router.post("/forgot-password", status_code=200)
 def forgot_password(data: ForgotPasswordRequest, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == data.email).first()
+    print(f"[ForgotPassword] İstek: {data.email} — kullanıcı: {user}, aktif: {user.is_active if user else 'yok'}")
     # Always return success to avoid email enumeration
     if not user or not user.is_active:
         return {"detail": "Eğer bu e-posta kayıtlıysa sıfırlama bağlantısı gönderildi"}
@@ -201,14 +203,19 @@ def forgot_password(data: ForgotPasswordRequest, db: Session = Depends(get_db)):
     db.add(reset_token)
     db.commit()
 
+    smtp_cfg = db.query(SmtpSettings).filter(SmtpSettings.is_active == True).first()  # noqa: E712
+
     try:
         from utils.email import send_password_reset_email
-        send_password_reset_email(user.email, token_value)
+        send_password_reset_email(user.email, token_value, smtp_cfg=smtp_cfg)
+        print(f"[ForgotPassword] E-posta gönderildi: {user.email}")
     except Exception as e:
-        print(f"[ForgotPassword] E-posta gönderilemedi: {e}")
-        # Don't expose error details to client
+        base_url = os.getenv("APP_BASE_URL", "http://localhost:5173")
+        print(f"[ForgotPassword] HATA — E-posta gönderilemedi: {e}")
+        print(f"[ForgotPassword] TEST LINKI: {base_url}/reset-password/{token_value}")
+        raise HTTPException(status_code=500, detail=f"E-posta gönderilemedi: {e}")
 
-    return {"detail": "Eğer bu e-posta kayıtlıysa sıfırlama bağlantısı gönderildi"}
+    return {"detail": "Şifre sıfırlama bağlantısı e-posta adresinize gönderildi"}
 
 
 @router.post("/reset-password/{token}", status_code=200)
