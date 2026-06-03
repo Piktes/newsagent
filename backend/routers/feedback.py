@@ -112,7 +112,6 @@ async def create_ticket(
 @router.get("/attachment/{filename}")
 def get_attachment(
     filename: str,
-    current_user: User = Depends(get_current_user),
 ):
     # Prevent path traversal
     safe = os.path.basename(filename)
