@@ -158,7 +158,7 @@ Migration: `python migrate_roles_departments.py`
 
 ## Active Development
 
-Tamamlanan geliştirmeler (push edilmedi):
+Tamamlanan geliştirmeler (commit: 44fb769, push edildi):
 - 3 katmanlı rol sistemi (user / admin / super_admin)
 - 29 MEB birimi DB'de, `departments` tablosu
 - `User.department_id` FK
