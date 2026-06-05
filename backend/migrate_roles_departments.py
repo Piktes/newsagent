@@ -67,6 +67,7 @@ def index_exists(table, index_name):
 
 # ─── 1. users.role 'admin' değerini desteklemeli ─────────
 
+# SQLAlchemy enum NAME kullanir (buyuk harf: SUPER_ADMIN, ADMIN, USER)
 cur.execute("""
     SELECT COLUMN_TYPE FROM information_schema.columns
     WHERE table_schema = DATABASE() AND table_name = 'users' AND column_name = 'role'
@@ -74,23 +75,21 @@ cur.execute("""
 row = cur.fetchone()
 col_type = row[0].decode() if row and isinstance(row[0], bytes) else (row[0] if row else "")
 
-if "admin" in col_type:
-    print("[--] users.role zaten 'admin' içeriyor")
-elif col_type.lower().startswith("enum"):
-    # MySQL ENUM sütunu — 'admin' değerini ekle
+if "ADMIN" in col_type:
+    print("[--] users.role zaten 'ADMIN' iceriyor")
+else:
     try:
+        # Once VARCHAR'a cevir, sonra dogru ENUM degerlerini ayarla
+        cur.execute("ALTER TABLE users MODIFY COLUMN role VARCHAR(20) NOT NULL DEFAULT 'USER'")
+        cur.execute("UPDATE users SET role = 'SUPER_ADMIN' WHERE LOWER(role) = 'super_admin'")
+        cur.execute("UPDATE users SET role = 'USER'        WHERE LOWER(role) = 'user'")
         cur.execute("""
             ALTER TABLE users
-            MODIFY COLUMN role ENUM('super_admin','admin','user') NOT NULL DEFAULT 'user'
+            MODIFY COLUMN role ENUM('SUPER_ADMIN','ADMIN','USER') NOT NULL DEFAULT 'USER'
         """)
-        print("[OK] users.role ENUM'a 'admin' eklendi")
+        print("[OK] users.role ENUM('SUPER_ADMIN','ADMIN','USER') olarak ayarlandi")
     except Exception as e:
-        print(f"[!!] ENUM modify başarısız, VARCHAR'a dönüştürülüyor: {e}")
-        cur.execute("ALTER TABLE users MODIFY COLUMN role VARCHAR(20) NOT NULL DEFAULT 'user'")
-        print("[OK] users.role VARCHAR(20)'ye dönüştürüldü")
-else:
-    # Zaten VARCHAR — ek işlem gerekmez, SQLAlchemy string olarak yönetir
-    print(f"[--] users.role tipi: {col_type} — ek değişiklik gerekmez")
+        print(f"[!!] role kolonu guncellenemedi: {e}")
 
 
 # ─── 2. departments tablosu ───────────────────────────────
@@ -271,11 +270,11 @@ temel_egitim_id = row[0] if row else None
 
 TEST_USERS = [
     ("test_superadmin", "test_superadmin@haberajani.local",
-     os.getenv("TEST_SUPERADMIN_PASSWORD", "SuperAdmin123!"), "super_admin", None),
+     os.getenv("TEST_SUPERADMIN_PASSWORD", "SuperAdmin123!"), "SUPER_ADMIN", None),
     ("test_admin",      "test_admin@haberajani.local",
-     os.getenv("TEST_ADMIN_PASSWORD",      "Admin123!"),      "admin",       bilgi_islem_id),
+     os.getenv("TEST_ADMIN_PASSWORD",      "Admin123!"),      "ADMIN",       bilgi_islem_id),
     ("test_user",       "test_user@haberajani.local",
-     os.getenv("TEST_USER_PASSWORD",       "User123!"),       "user",        temel_egitim_id),
+     os.getenv("TEST_USER_PASSWORD",       "User123!"),       "USER",        temel_egitim_id),
 ]
 
 for username, email, password, role, dept_id in TEST_USERS:
