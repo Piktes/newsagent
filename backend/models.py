@@ -89,7 +89,7 @@ class User(Base):
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     # Relationships
-    tags = relationship("Tag", back_populates="user", cascade="all, delete-orphan")
+    tags = relationship("Tag", back_populates="user", cascade="all, delete-orphan", foreign_keys="Tag.user_id")
     sources = relationship("NewsSource", back_populates="user", cascade="all, delete-orphan")
     notification_prefs = relationship("NotificationPref", back_populates="user", cascade="all, delete-orphan")
     department = relationship("Department", back_populates="users")
