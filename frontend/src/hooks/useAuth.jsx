@@ -44,10 +44,11 @@ export function AuthProvider({ children }) {
     });
   };
 
-  const isAdmin = user?.role === 'super_admin';
+  const isAdmin = user?.role === 'admin' || user?.role === 'super_admin';
+  const isSuperAdmin = user?.role === 'super_admin';
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, updateUser, isAdmin }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, updateUser, isAdmin, isSuperAdmin }}>
       {children}
     </AuthContext.Provider>
   );

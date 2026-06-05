@@ -24,17 +24,29 @@ class TokenResponse(BaseModel):
 
 # ─── Users ────────────────────────────────────────────────
 
+class DepartmentResponse(BaseModel):
+    id: int
+    name: str
+    parent_id: Optional[int] = None
+    sort_order: int = 0
+
+    class Config:
+        from_attributes = True
+
+
 class UserCreate(BaseModel):
     username: str = Field(min_length=3, max_length=50)
     email: str
     password: str = Field(min_length=6)
     role: UserRole = UserRole.USER
+    department_id: Optional[int] = None
 
 
 class UserUpdate(BaseModel):
     email: Optional[str] = None
     is_active: Optional[bool] = None
     role: Optional[UserRole] = None
+    department_id: Optional[int] = None
 
 
 class UserResponse(BaseModel):
@@ -44,6 +56,8 @@ class UserResponse(BaseModel):
     role: UserRole
     is_active: bool
     must_change_password: bool = False
+    department_id: Optional[int] = None
+    department: Optional[DepartmentResponse] = None
     created_at: Optional[datetime] = None
 
     class Config:
@@ -61,11 +75,12 @@ class TagCreate(BaseModel):
     name: str = Field(min_length=1, max_length=100)
     must_phrase: Optional[str] = None
     context_keywords: Optional[List[str]] = None
-    context_oper: str = "or"               # 'or' | 'and'
+    context_oper: str = "or"
     color: str = "#3B82F6"
     language: Language = Language.BOTH
     is_breaking: bool = False
     scan_interval_minutes: int = 30
+    is_published: bool = False
 
 
 class TagUpdate(BaseModel):
@@ -77,6 +92,7 @@ class TagUpdate(BaseModel):
     language: Optional[Language] = None
     is_breaking: Optional[bool] = None
     scan_interval_minutes: Optional[int] = None
+    is_published: Optional[bool] = None
 
 
 class TagResponse(BaseModel):
@@ -91,6 +107,9 @@ class TagResponse(BaseModel):
     scan_interval_minutes: int
     last_breaking_scan: Optional[datetime] = None
     last_scan_items_found: Optional[int] = None
+    is_published: bool = False
+    published_by_id: Optional[int] = None
+    published_at: Optional[datetime] = None
     user_id: int
     created_at: Optional[datetime] = None
 
@@ -320,6 +339,45 @@ class ErrorLogResponse(BaseModel):
     details: Optional[str] = None
     user_id: Optional[int] = None
     created_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+# ─── UserNewsState ───────────────────────────────────────
+
+class UserNewsStateUpdate(BaseModel):
+    is_read: Optional[bool] = None
+    is_favorite: Optional[bool] = None
+    user_note: Optional[str] = None
+
+
+class UserNewsStateResponse(BaseModel):
+    user_id: int
+    news_item_id: int
+    is_read: bool
+    is_favorite: bool
+    user_note: Optional[str] = None
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+# ─── NewsHide ────────────────────────────────────────────
+
+class NewsHideCreate(BaseModel):
+    user_id: Optional[int] = None
+    department_id: Optional[int] = None
+
+
+class NewsHideResponse(BaseModel):
+    id: int
+    news_item_id: int
+    user_id: Optional[int] = None
+    department_id: Optional[int] = None
+    hidden_by_id: int
+    hidden_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True

@@ -16,7 +16,7 @@ from typing import List, Optional
 from database import get_db
 from models import FeedbackTicket, TicketStatus, User
 from schemas import TicketAnswerRequest, TicketCloseRequest, FeedbackTicketResponse
-from auth import get_current_user, require_admin
+from auth import get_current_user, require_admin, require_super_admin
 
 router = APIRouter(prefix="/api/feedback", tags=["Feedback"])
 
@@ -142,7 +142,7 @@ def my_tickets(
 def all_tickets(
     status: str = None,
     db: Session = Depends(get_db),
-    admin: User = Depends(require_admin),
+    admin: User = Depends(require_super_admin),
 ):
     q = db.query(FeedbackTicket).order_by(desc(FeedbackTicket.created_at))
     if status:
@@ -155,7 +155,7 @@ def answer_ticket(
     ticket_id: int,
     data: TicketAnswerRequest,
     db: Session = Depends(get_db),
-    admin: User = Depends(require_admin),
+    admin: User = Depends(require_super_admin),
 ):
     ticket = db.query(FeedbackTicket).filter(FeedbackTicket.id == ticket_id).first()
     if not ticket:
@@ -173,7 +173,7 @@ def close_ticket(
     ticket_id: int,
     data: TicketCloseRequest,
     db: Session = Depends(get_db),
-    admin: User = Depends(require_admin),
+    admin: User = Depends(require_super_admin),
 ):
     ticket = db.query(FeedbackTicket).filter(FeedbackTicket.id == ticket_id).first()
     if not ticket:
@@ -191,7 +191,7 @@ def close_ticket(
 def delete_ticket(
     ticket_id: int,
     db: Session = Depends(get_db),
-    admin: User = Depends(require_admin),
+    admin: User = Depends(require_super_admin),
 ):
     ticket = db.query(FeedbackTicket).filter(FeedbackTicket.id == ticket_id).first()
     if not ticket:

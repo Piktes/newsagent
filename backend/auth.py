@@ -70,8 +70,16 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
 
 
 def require_admin(current_user: User = Depends(get_current_user)) -> User:
-    if current_user.role != UserRole.SUPER_ADMIN:
+    """Admin veya Süper Admin gerektirir."""
+    if current_user.role not in (UserRole.ADMIN, UserRole.SUPER_ADMIN):
         raise HTTPException(status_code=403, detail="Bu işlem için yetkiniz yok")
+    return current_user
+
+
+def require_super_admin(current_user: User = Depends(get_current_user)) -> User:
+    """Yalnızca Süper Admin gerektirir."""
+    if current_user.role != UserRole.SUPER_ADMIN:
+        raise HTTPException(status_code=403, detail="Bu işlem yalnızca Süper Admin tarafından yapılabilir")
     return current_user
 
 

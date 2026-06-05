@@ -66,6 +66,13 @@ export const tagsApi = {
     if (sourceTypes && sourceTypes.length) sourceTypes.forEach(t => params.append('source_types', t));
     return api.post(`/tags/scan-all?${params}`);
   },
+  publish:   (id) => api.patch(`/tags/${id}/publish`),
+  unpublish: (id) => api.patch(`/tags/${id}/unpublish`),
+};
+
+// ─── Departments ──────────────────────────────────────
+export const departmentsApi = {
+  list: () => api.get('/departments/'),
 };
 
 // ─── Sources ──────────────────────────────────────────

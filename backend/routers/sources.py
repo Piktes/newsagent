@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 from database import get_db
 from models import NewsSource, ApiQuota, User, SourceType
 from schemas import SourceCreate, SourceUpdate, SourceResponse, ApiQuotaResponse
-from auth import get_current_user, require_admin
+from auth import get_current_user, require_admin, require_super_admin
 
 router = APIRouter(prefix="/api/sources", tags=["News Sources"])
 
@@ -116,7 +116,7 @@ def delete_source(
 @router.get("/quotas", response_model=List[ApiQuotaResponse])
 def get_quotas(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_super_admin)
 ):
     quotas = db.query(ApiQuota).filter(ApiQuota.user_id == current_user.id).all()
     # Auto-reset daily quotas

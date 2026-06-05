@@ -73,11 +73,17 @@ python migrate_sentiment.py    # schema migration script
 
 **Environment variables** (backend — all have defaults):
 ```
-DATABASE_URL          # default: sqlite:///./haberajani.db
+DATABASE_URL          # MySQL: mysql+pymysql://root:1234@localhost/haberajani?charset=utf8mb4
 SECRET_KEY            # default: haberajani-secret
 ACCESS_TOKEN_EXPIRE_MINUTES  # default: 1440 (24h)
 SUPER_ADMIN_USERNAME / _EMAIL / _PASSWORD  # seeded on first startup
 ```
+
+**MySQL bağlantı bilgileri (local dev):**
+- Host: localhost
+- User: root
+- Password: 1234
+- Database: haberajani
 
 ### Frontend (`frontend/src/`)
 
@@ -108,3 +114,62 @@ User ──< ApiQuota    (per SourceType, resets daily)
 - **Relevance filter is post-fetch**: Engines return up to `max_results` items; scheduler then discards any where the tag phrase doesn't appear in title or summary (after Turkish normalization — lowercased, ı→i, ğ→g, etc.).
 - **Sentiment is optional**: If the BERT model fails to load or throws, `(None, None)` is stored; the app continues without sentiment data.
 - **MySQL support**: Set `DATABASE_URL=mysql+pymysql://user:pass@host/db`; the engine switches to connection pooling (`pool_size=5, pool_recycle=3600`).
+
+## Rol Yapısı (3 Katman)
+
+| Rol | Yetki |
+|---|---|
+| `user` | Sadece `is_published=True` olan etiketlerin haberlerini görür. Etiket/kaynak yönetemez. |
+| `admin` | Etiket oluşturur, haber çeker, son dakika schedule'ı yönetir, haberleri yayınlar. |
+| `super_admin` | Admin'in her şeyi + haber gizleme (kullanıcı/birim bazlı) + API Kota + Sistem İyileştirmeleri sekmesi. |
+
+**Yetki dependency'leri** (`auth.py`):
+- `require_admin()` → admin VEYA super_admin
+- `require_super_admin()` → yalnızca super_admin
+
+## Kullanıcı Grupları (Birimler)
+
+29 MEB birimi `departments` tablosunda, hiyerarşi `parent_id` ile tutulur.
+Migration: `python migrate_roles_departments.py`
+
+**Test kullanıcıları** (migrate_roles_departments.py ile oluşturulur):
+| Kullanıcı | Rol | Şifre |
+|---|---|---|
+| `test_superadmin` | super_admin | SuperAdmin123! |
+| `test_admin` | admin | Admin123! |
+| `test_user` | user | User123! |
+
+## Yayınlama Mekanizması
+
+- `Tag.is_published` switch → ON ise kullanıcı rolü görür
+- `Tag.published_by_id` → yayınlayan admin kaydı
+- Başka admin aynı tag'i yayınlamaya çalışırsa → 409 hatası
+- Endpoint: `PATCH /api/tags/{id}/publish` ve `/unpublish`
+
+## Haber Gizleme (Süper Admin)
+
+- `NewsHide` tablosu: `news_item_id` + `user_id?` + `department_id?`
+- Endpoint: `POST /api/news/{id}/hide-for` — body: `{user_id}` veya `{department_id}`
+- News sorgusu kullanıcı rolü için NewsHide filtresi uygular
+
+## UserNewsState
+
+`is_read`, `is_favorite`, `user_note` artık `NewsItem` üzerinde değil, `UserNewsState` tablosunda (user_id + news_item_id composite PK). Her kullanıcı için ayrı durum.
+
+## Active Development
+
+Tamamlanan geliştirmeler (push edilmedi):
+- 3 katmanlı rol sistemi (user / admin / super_admin)
+- 29 MEB birimi DB'de, `departments` tablosu
+- `User.department_id` FK
+- `Tag.is_published` + publish/unpublish endpoint'leri
+- `UserNewsState` modeli (per-user is_read/favorite/note)
+- `NewsHide` modeli (süper admin gizleme)
+- `require_admin` / `require_super_admin` auth dependency'leri
+- Frontend: `isAdmin` / `isSuperAdmin` hook'ları
+- Frontend: Sidebar rol bazlı filtreleme (superAdminOnly öğeleri)
+- Frontend: TagsPage yayınla switch + kart toggle
+- Frontend: UsersPage birim dropdown + 3 rol seçeneği
+- Frontend: App.jsx rota kısıtlamaları (adminOnly / superAdminOnly)
+- Feedback cevaplama → yalnızca super_admin
+- API Kota sayfası → yalnızca super_admin

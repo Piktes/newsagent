@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { tagsApi } from '../services/api';
-import { Tags, Zap, X, Plus } from 'lucide-react';
+import { Tags, Zap, X, Radio } from 'lucide-react';
 import TrendsPanel from '../components/TrendsPanel';
+import { useAuth } from '../hooks/useAuth';
 
 const COLORS = ['#3B82F6', '#EF4444', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899', '#06B6D4', '#F97316'];
 
@@ -20,6 +21,7 @@ const EMPTY_FORM = {
   color: '#3B82F6',
   is_breaking: false,
   scan_interval_minutes: 30,
+  is_published: false,
 };
 
 // ─── Canlı önizleme metni ─────────────────────────────────────────
@@ -37,8 +39,10 @@ function buildPreview(must, keywords, oper) {
 }
 
 export default function TagsPage() {
+  const { user, isSuperAdmin } = useAuth();
   const [tags, setTags]               = useState([]);
   const [loading, setLoading]         = useState(true);
+  const [publishingId, setPublishingId] = useState(null);
   const [showForm, setShowForm]       = useState(false);
   const [editId, setEditId]           = useState(null);
   const [form, setForm]               = useState(EMPTY_FORM);
@@ -94,6 +98,7 @@ export default function TagsPage() {
       language: 'tr',
       is_breaking: form.is_breaking,
       scan_interval_minutes: form.scan_interval_minutes,
+      is_published: form.is_published,
     };
     try {
       if (editId) {
@@ -121,6 +126,7 @@ export default function TagsPage() {
       color: tag.color,
       is_breaking: tag.is_breaking ?? false,
       scan_interval_minutes: tag.scan_interval_minutes ?? 30,
+      is_published: tag.is_published ?? false,
     });
     setCtxInput('');
     setEditId(tag.id);
@@ -142,6 +148,21 @@ export default function TagsPage() {
       alert(err.response?.data?.detail || 'Silme hatası oluştu');
     }
     setDeleting(false);
+  };
+
+  const handlePublishToggle = async (tag) => {
+    setPublishingId(tag.id);
+    try {
+      if (tag.is_published) {
+        await tagsApi.unpublish(tag.id);
+      } else {
+        await tagsApi.publish(tag.id);
+      }
+      fetchTags();
+    } catch (err) {
+      alert(err.response?.data?.detail || 'İşlem başarısız');
+    }
+    setPublishingId(null);
   };
 
   const cancelForm = () => {
@@ -458,6 +479,36 @@ export default function TagsPage() {
             )}
           </div>
 
+          {/* ── Yayınla ── */}
+          <div className="form-group" style={{ marginBottom: '1.1rem' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', userSelect: 'none' }}>
+              <span
+                onClick={() => setForm(f => ({ ...f, is_published: !f.is_published }))}
+                style={{
+                  width: 36, height: 20, borderRadius: 10, flexShrink: 0,
+                  background: form.is_published ? '#10b981' : 'var(--bg-input)',
+                  boxShadow: 'var(--ring)',
+                  position: 'relative', transition: 'background 0.2s', cursor: 'pointer',
+                  display: 'inline-flex', alignItems: 'center', padding: '0 2px',
+                }}
+              >
+                <span style={{
+                  width: 16, height: 16, borderRadius: '50%', background: 'white',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
+                  transform: form.is_published ? 'translateX(16px)' : 'translateX(0)',
+                  transition: 'transform 0.2s', display: 'block',
+                }} />
+              </span>
+              <Radio size={14} style={{ color: form.is_published ? '#10b981' : 'var(--text-muted)' }} />
+              <span style={{ fontWeight: 500, color: form.is_published ? '#10b981' : 'var(--text-secondary)' }}>
+                Kullanıcılara Yayınla
+              </span>
+            </label>
+            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.3rem', lineHeight: 1.55 }}>
+              Açıksa bu etikete ait haberler kullanıcı rolündekiler tarafından görülebilir.
+            </div>
+          </div>
+
           </div>{/* /sağ sütun */}
           </div>{/* /2-col grid */}
 
@@ -518,6 +569,37 @@ export default function TagsPage() {
                   {tag.last_breaking_scan && (
                     <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
                       Son tarama: {new Date((tag.last_breaking_scan.endsWith('Z') || tag.last_breaking_scan.includes('+') ? tag.last_breaking_scan : tag.last_breaking_scan + 'Z')).toLocaleString('tr-TR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  )}
+                </div>
+
+                {/* Yayın durumu */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.5rem' }}>
+                  <button
+                    onClick={() => handlePublishToggle(tag)}
+                    disabled={publishingId === tag.id ||
+                      (!isSuperAdmin && tag.is_published && tag.published_by_id && tag.published_by_id !== user?.id)}
+                    title={
+                      tag.is_published && tag.published_by_id && tag.published_by_id !== user?.id && !isSuperAdmin
+                        ? 'Yalnızca yayınlayan admin veya Süper Admin durdurabilir'
+                        : tag.is_published ? 'Yayından kaldır' : 'Kullanıcılara yayınla'
+                    }
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: '0.35rem',
+                      padding: '0.2rem 0.6rem', borderRadius: 20, fontSize: '0.72rem',
+                      border: `1px solid ${tag.is_published ? '#10b981' : 'var(--border)'}`,
+                      background: tag.is_published ? 'rgba(16,185,129,0.1)' : 'transparent',
+                      color: tag.is_published ? '#10b981' : 'var(--text-muted)',
+                      cursor: 'pointer', transition: 'all 0.15s',
+                      opacity: publishingId === tag.id ? 0.5 : 1,
+                    }}
+                  >
+                    <Radio size={11} />
+                    {publishingId === tag.id ? '...' : tag.is_published ? 'Yayında' : 'Yayında değil'}
+                  </button>
+                  {tag.is_published && tag.published_by_id && (
+                    <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>
+                      #{tag.published_by_id}
                     </span>
                   )}
                 </div>

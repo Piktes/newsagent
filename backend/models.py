@@ -16,6 +16,7 @@ from database import Base
 
 class UserRole(str, enum.Enum):
     SUPER_ADMIN = "super_admin"
+    ADMIN = "admin"
     USER = "user"
 
 
@@ -62,6 +63,18 @@ class TicketStatus(str, enum.Enum):
 
 # ─── Models ───────────────────────────────────────────────
 
+class Department(Base):
+    __tablename__ = "departments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(200), nullable=False)
+    parent_id = Column(Integer, ForeignKey("departments.id"), nullable=True)
+    sort_order = Column(Integer, default=0)
+
+    parent = relationship("Department", remote_side="Department.id", backref="children")
+    users = relationship("User", back_populates="department")
+
+
 class User(Base):
     __tablename__ = "users"
 
@@ -72,12 +85,14 @@ class User(Base):
     role = Column(SqlEnum(UserRole), default=UserRole.USER, nullable=False)
     is_active = Column(Boolean, default=True)
     must_change_password = Column(Boolean, default=False)
+    department_id = Column(Integer, ForeignKey("departments.id"), nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     # Relationships
     tags = relationship("Tag", back_populates="user", cascade="all, delete-orphan")
     sources = relationship("NewsSource", back_populates="user", cascade="all, delete-orphan")
     notification_prefs = relationship("NotificationPref", back_populates="user", cascade="all, delete-orphan")
+    department = relationship("Department", back_populates="users")
 
 
 class Tag(Base):
@@ -94,11 +109,15 @@ class Tag(Base):
     scan_interval_minutes = Column(Integer, default=30)
     last_breaking_scan = Column(DateTime, nullable=True)
     last_scan_items_found = Column(Integer, nullable=True)
+    is_published = Column(Boolean, default=False)
+    published_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    published_at = Column(DateTime, nullable=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     # Relationships
-    user = relationship("User", back_populates="tags")
+    user = relationship("User", back_populates="tags", foreign_keys=[user_id])
+    published_by = relationship("User", foreign_keys=[published_by_id])
     news_items = relationship("NewsItem", back_populates="tag", cascade="all, delete-orphan")
     notification_prefs = relationship("NotificationPref", back_populates="tag", cascade="all, delete-orphan")
 
@@ -350,6 +369,38 @@ class GlobalArticle(Base):
 
     search = relationship("GlobalSearch", back_populates="articles")
     event  = relationship("GlobalEvent",  back_populates="articles")
+
+
+class UserNewsState(Base):
+    """Per-user read/favorite/note state for shared published news items."""
+    __tablename__ = "user_news_states"
+
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    news_item_id = Column(Integer, ForeignKey("news_items.id", ondelete="CASCADE"), primary_key=True)
+    is_read = Column(Boolean, default=False)
+    is_favorite = Column(Boolean, default=False)
+    user_note = Column(Text, nullable=True)
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    user = relationship("User")
+    news_item = relationship("NewsItem")
+
+
+class NewsHide(Base):
+    """Super admin hides a specific news item from a user or entire department."""
+    __tablename__ = "news_hides"
+
+    id = Column(Integer, primary_key=True, index=True)
+    news_item_id = Column(Integer, ForeignKey("news_items.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=True)
+    department_id = Column(Integer, ForeignKey("departments.id", ondelete="CASCADE"), nullable=True)
+    hidden_by_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    hidden_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    news_item = relationship("NewsItem")
+    target_user = relationship("User", foreign_keys=[user_id])
+    hidden_by = relationship("User", foreign_keys=[hidden_by_id])
+    department = relationship("Department")
 
 
 class PasswordResetToken(Base):

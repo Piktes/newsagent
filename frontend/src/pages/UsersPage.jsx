@@ -1,12 +1,21 @@
 import { useState, useEffect } from 'react';
-import { authApi } from '../services/api';
+import { authApi, departmentsApi } from '../services/api';
 import { Users, Info } from 'lucide-react';
 
+const ROLE_LABEL = {
+  super_admin: { label: 'Süper Admin', badge: 'badge-purple', icon: '👑' },
+  admin:       { label: 'Admin',       badge: 'badge-blue',   icon: '🛡️' },
+  user:        { label: 'Kullanıcı',   badge: 'badge-gray',   icon: '👤' },
+};
+
+const EMPTY_FORM = { username: '', emailPrefix: '', role: 'user', department_id: '' };
+
 export default function UsersPage() {
-  const [users, setUsers] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ username: '', emailPrefix: '', role: 'user' });
+  const [users, setUsers]           = useState([]);
+  const [departments, setDepts]     = useState([]);
+  const [loading, setLoading]       = useState(true);
+  const [showForm, setShowForm]     = useState(false);
+  const [form, setForm]             = useState(EMPTY_FORM);
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -19,7 +28,10 @@ export default function UsersPage() {
     setLoading(false);
   };
 
-  useEffect(() => { fetchUsers(); }, []);
+  useEffect(() => {
+    fetchUsers();
+    departmentsApi.list().then(r => setDepts(r.data)).catch(() => {});
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -29,8 +41,9 @@ export default function UsersPage() {
         email: `${form.emailPrefix}@meb.gov.tr`,
         role: form.role,
         password: '123456',
+        department_id: form.department_id ? Number(form.department_id) : null,
       });
-      setForm({ username: '', emailPrefix: '', role: 'user' });
+      setForm(EMPTY_FORM);
       setShowForm(false);
       fetchUsers();
     } catch (err) {
@@ -67,11 +80,17 @@ export default function UsersPage() {
     }
   };
 
+  // Birim adını id'den bul
+  const deptName = (id) => departments.find(d => d.id === id)?.name ?? '-';
+
   return (
     <div className="dashboard-page admin-page">
       <div className="page-header">
         <h1 style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}><Users size={28} /> Kullanıcı Yönetimi</h1>
-        <button className="btn btn-primary" onClick={() => { setShowForm(!showForm); setForm({ username: '', emailPrefix: '', role: 'user' }); }}>
+        <button
+          className="btn btn-primary"
+          onClick={() => { setShowForm(!showForm); setForm(EMPTY_FORM); }}
+        >
           {showForm ? '✕ İptal' : '+ Yeni Kullanıcı'}
         </button>
       </div>
@@ -89,62 +108,71 @@ export default function UsersPage() {
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
           <Info size={15} style={{ color: 'var(--accent)', flexShrink: 0 }} />
-          <strong style={{ color: 'var(--text-primary)', fontSize: '0.9rem' }}>Kullanıcı hesapları hakkında</strong>
+          <strong style={{ color: 'var(--text-primary)', fontSize: '0.9rem' }}>Roller</strong>
         </div>
         <ul style={{ margin: 0, paddingLeft: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
-          <li>Eklenen kullanıcı sisteme <strong>e-posta adresiyle</strong> giriş yapar (ör. <code style={{ background: 'rgba(0,0,0,0.1)', padding: '0 4px', borderRadius: 3 }}>ad.soyad@meb.gov.tr</code>).</li>
-          <li>İlk giriş şifresi otomatik olarak <strong>123456</strong> atanır; kullanıcı giriş sonrasında şifresini değiştirmek zorunda kalır.</li>
-          <li>Şifre sıfırlamak için tablodaki <strong>🔑</strong> butonunu kullanın — şifre tekrar 123456 yapılır.</li>
-          <li>Hesabı geçici olarak kapatmak için <strong>Durum</strong> sütunundaki toggle'ı kapatın.</li>
+          <li><strong>👑 Süper Admin</strong> — Tüm yetkiler. Haberleri kullanıcı/birim bazlı gizleyebilir. API Kota ve Sistem İyileştirmeleri sekmelerini görür.</li>
+          <li><strong>🛡️ Admin</strong> — Etiket oluşturur, haber çeker, kullanıcılara yayınlar. Son dakika schedule'ını yönetir.</li>
+          <li><strong>👤 Kullanıcı</strong> — Yalnızca yayınlanmış haberleri görür. Etiket/kaynak yönetemez.</li>
+          <li>İlk giriş şifresi <strong>123456</strong> — kullanıcı giriş sonrasında değiştirmeye zorlanır.</li>
         </ul>
       </div>
 
       {showForm && (
         <form className="card form-card" onSubmit={handleSubmit}>
           <h3>Yeni Kullanıcı</h3>
-          <div className="form-row">
-            <div className="form-group flex-1">
+          <div className="form-row" style={{ flexWrap: 'wrap' }}>
+            <div className="form-group flex-1" style={{ minWidth: 160 }}>
               <label>Kullanıcı Adı</label>
               <input
                 type="text"
                 value={form.username}
-                onChange={(e) => setForm({...form, username: e.target.value})}
+                onChange={(e) => setForm({ ...form, username: e.target.value })}
                 placeholder="ör: ahmet.yilmaz"
-                required
-                minLength={3}
+                required minLength={3}
               />
             </div>
-            <div className="form-group flex-1">
+            <div className="form-group flex-1" style={{ minWidth: 200 }}>
               <label>E-posta</label>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center' }}>
                 <input
                   type="text"
                   value={form.emailPrefix}
-                  onChange={(e) => setForm({...form, emailPrefix: e.target.value})}
+                  onChange={(e) => setForm({ ...form, emailPrefix: e.target.value })}
                   placeholder="ad.soyad"
                   required
                   style={{ borderRadius: 'var(--radius-sm) 0 0 var(--radius-sm)', flex: 1 }}
                 />
                 <span style={{
-                  padding: '0 0.625rem',
-                  height: '36px',
-                  display: 'flex',
-                  alignItems: 'center',
+                  padding: '0 0.625rem', height: '36px',
+                  display: 'flex', alignItems: 'center',
                   background: 'var(--bg-secondary)',
-                  border: '1px solid var(--border)',
-                  borderLeft: 'none',
+                  border: '1px solid var(--border)', borderLeft: 'none',
                   borderRadius: '0 var(--radius-sm) var(--radius-sm) 0',
-                  fontSize: '0.85rem',
-                  color: 'var(--text-muted)',
-                  whiteSpace: 'nowrap',
+                  fontSize: '0.85rem', color: 'var(--text-muted)', whiteSpace: 'nowrap',
                 }}>@meb.gov.tr</span>
               </div>
             </div>
-            <div className="form-group">
+            <div className="form-group" style={{ minWidth: 130 }}>
               <label>Rol</label>
-              <select value={form.role} onChange={(e) => setForm({...form, role: e.target.value})}>
-                <option value="user">Kullanıcı</option>
-                <option value="super_admin">Admin</option>
+              <select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
+                <option value="user">👤 Kullanıcı</option>
+                <option value="admin">🛡️ Admin</option>
+                <option value="super_admin">👑 Süper Admin</option>
+              </select>
+            </div>
+            <div className="form-group flex-1" style={{ minWidth: 200 }}>
+              <label>Birim</label>
+              <select
+                value={form.department_id}
+                onChange={(e) => setForm({ ...form, department_id: e.target.value })}
+              >
+                <option value="">— Seçiniz —</option>
+                {departments.map(d => (
+                  <option key={d.id} value={d.id}>
+                    {d.parent_id ? `  ${d.name}` : d.name}
+                  </option>
+                ))}
               </select>
             </div>
           </div>
@@ -159,45 +187,57 @@ export default function UsersPage() {
               <th>Kullanıcı</th>
               <th>E-posta</th>
               <th>Rol</th>
+              <th>Birim</th>
               <th>Durum</th>
-              <th>Kayıt Tarihi</th>
+              <th>Kayıt</th>
               <th>İşlemler</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan="6" style={{textAlign:'center'}}><div className="spinner"></div></td></tr>
-            ) : users.map(user => (
-              <tr key={user.id}>
-                <td><strong>{user.username}</strong></td>
-                <td>{user.email}</td>
-                <td><span className={`badge ${user.role === 'super_admin' ? 'badge-purple' : 'badge-blue'}`}>
-                  {user.role === 'super_admin' ? '👑 Admin' : '👤 Kullanıcı'}
-                </span></td>
-                <td>
-                  <label className="toggle">
-                    <input type="checkbox" checked={user.is_active} onChange={() => handleToggle(user)} disabled={user.role === 'super_admin'} />
-                    <span className="toggle-slider"></span>
-                  </label>
-                </td>
-                <td>{user.created_at ? new Date(user.created_at).toLocaleDateString('tr-TR') : '-'}</td>
-                <td>
-                  {user.role !== 'super_admin' && (
-                    <div style={{ display: 'flex', gap: '0.375rem' }}>
-                      <button
-                        className="btn btn-sm"
-                        style={{ background: 'rgba(234,179,8,0.12)', color: '#ca8a04', border: '1px solid rgba(234,179,8,0.25)' }}
-                        onClick={() => handleResetPassword(user)}
-                        title="Şifreyi 123456 olarak sıfırla"
-                      >
-                        🔑
-                      </button>
-                      <button className="btn btn-sm btn-danger" onClick={() => handleDelete(user.id)}>🗑️</button>
-                    </div>
-                  )}
-                </td>
-              </tr>
-            ))}
+              <tr><td colSpan="7" style={{ textAlign: 'center' }}><div className="spinner"></div></td></tr>
+            ) : users.map(user => {
+              const roleInfo = ROLE_LABEL[user.role] || ROLE_LABEL.user;
+              return (
+                <tr key={user.id}>
+                  <td><strong>{user.username}</strong></td>
+                  <td>{user.email}</td>
+                  <td>
+                    <span className={`badge ${roleInfo.badge}`}>
+                      {roleInfo.icon} {roleInfo.label}
+                    </span>
+                  </td>
+                  <td style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {user.department_id ? deptName(user.department_id) : <span style={{ color: 'var(--text-muted)' }}>—</span>}
+                  </td>
+                  <td>
+                    <label className="toggle">
+                      <input
+                        type="checkbox"
+                        checked={user.is_active}
+                        onChange={() => handleToggle(user)}
+                        disabled={user.role === 'super_admin'}
+                      />
+                      <span className="toggle-slider"></span>
+                    </label>
+                  </td>
+                  <td>{user.created_at ? new Date(user.created_at).toLocaleDateString('tr-TR') : '-'}</td>
+                  <td>
+                    {user.role !== 'super_admin' && (
+                      <div style={{ display: 'flex', gap: '0.375rem' }}>
+                        <button
+                          className="btn btn-sm"
+                          style={{ background: 'rgba(234,179,8,0.12)', color: '#ca8a04', border: '1px solid rgba(234,179,8,0.25)' }}
+                          onClick={() => handleResetPassword(user)}
+                          title="Şifreyi 123456 olarak sıfırla"
+                        >🔑</button>
+                        <button className="btn btn-sm btn-danger" onClick={() => handleDelete(user.id)}>🗑️</button>
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

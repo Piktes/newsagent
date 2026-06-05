@@ -22,16 +22,16 @@ const NAV_ITEMS = [
 ];
 
 const ADMIN_ITEMS = [
-  { path: '/admin', icon: <BarChart size={18} />, label: 'Yönetim Paneli' },
-  { path: '/admin/users', icon: <Users size={18} />, label: 'Kullanıcılar' },
-  { path: '/admin/logs', icon: <FileText size={18} />, label: 'Tarama Logları' },
-  { path: '/admin/quota', icon: <Gauge size={18} />, label: 'API Kotası' },
-  { path: '/admin/feedback', icon: <Wrench size={18} />, label: 'Sistem İyileştirmeleri' },
-  { path: '/admin/error-logs', icon: <AlertTriangle size={18} />, label: 'Hata Logları' },
+  { path: '/admin',             icon: <BarChart size={18} />,    label: 'Yönetim Paneli' },
+  { path: '/admin/users',       icon: <Users size={18} />,       label: 'Kullanıcılar' },
+  { path: '/admin/logs',        icon: <FileText size={18} />,    label: 'Tarama Logları' },
+  { path: '/admin/quota',       icon: <Gauge size={18} />,       label: 'API Kotası',             superAdminOnly: true },
+  { path: '/admin/feedback',    icon: <Wrench size={18} />,      label: 'Sistem İyileştirmeleri', superAdminOnly: true },
+  { path: '/admin/error-logs',  icon: <AlertTriangle size={18} />, label: 'Hata Logları' },
 ];
 
 export default function Sidebar({ collapsed, onToggle, isDarkTheme, toggleTheme }) {
-  const { user, logout, isAdmin } = useAuth();
+  const { user, logout, isAdmin, isSuperAdmin } = useAuth();
   const [tags, setTags] = useState([]);
   const [todayUnread, setTodayUnread] = useState(0);
   const [breakingUnread, setBreakingUnread] = useState(0);
@@ -86,7 +86,9 @@ export default function Sidebar({ collapsed, onToggle, isDarkTheme, toggleTheme 
             <div className="user-avatar" style={{ width: 30, height: 30, fontSize: '0.75rem' }}>{user?.username?.[0]?.toUpperCase()}</div>
             <div className="user-details">
               <span className="user-name" style={{ fontSize: '0.8rem' }}>{user?.username}</span>
-              <span className="user-role" style={{ fontSize: '0.7rem' }}>{isAdmin ? 'Admin' : 'Kullanıcı'}</span>
+              <span className="user-role" style={{ fontSize: '0.7rem' }}>
+              {isSuperAdmin ? 'Süper Admin' : isAdmin ? 'Admin' : 'Kullanıcı'}
+            </span>
             </div>
             <div style={{ marginLeft: 'auto', display: 'flex', gap: '0.25rem' }}>
               <button className="icon-btn" onClick={toggleTheme} title={isDarkTheme ? 'Açık Tema' : 'Koyu Tema'}>
@@ -181,7 +183,7 @@ export default function Sidebar({ collapsed, onToggle, isDarkTheme, toggleTheme 
         {isAdmin && (
           <div className="nav-section">
             {!collapsed && <span className="nav-section-title">YÖNETİM</span>}
-            {ADMIN_ITEMS.map(item => (
+            {ADMIN_ITEMS.filter(item => !(item.superAdminOnly && !isSuperAdmin)).map(item => (
               <NavLink
                 key={item.path}
                 to={item.path}

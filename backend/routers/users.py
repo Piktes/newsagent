@@ -106,6 +106,7 @@ def create_user(
         role=data.role,
         is_active=True,
         must_change_password=True,
+        department_id=data.department_id,
     )
     db.add(user)
     db.commit()
@@ -135,6 +136,8 @@ def update_user(
         user.is_active = data.is_active
     if data.role is not None:
         user.role = data.role
+    if data.department_id is not None:
+        user.department_id = data.department_id
 
     db.commit()
     db.refresh(user)

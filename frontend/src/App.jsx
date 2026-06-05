@@ -24,11 +24,12 @@ import GlobalSearchPage from './pages/GlobalSearchPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
 
-function ProtectedRoute({ children, adminOnly = false }) {
-  const { user, loading, isAdmin } = useAuth();
+function ProtectedRoute({ children, adminOnly = false, superAdminOnly = false }) {
+  const { user, loading, isAdmin, isSuperAdmin } = useAuth();
   if (loading) return <div className="loading-state"><div className="spinner large"></div></div>;
   if (!user) return <Navigate to="/login" />;
   if (user.must_change_password) return <Navigate to="/change-password" />;
+  if (superAdminOnly && !isSuperAdmin) return <Navigate to="/" />;
   if (adminOnly && !isAdmin) return <Navigate to="/" />;
   return children;
 }
@@ -111,19 +112,19 @@ function AppLayout({ isDarkTheme, toggleTheme }) {
           <Route path="/today" element={<DashboardPage />} />
           <Route path="/son-dakika" element={<BreakingNewsPage />} />
           <Route path="/favorites" element={<FavoritesPage />} />
-          <Route path="/tags" element={<TagsPage />} />
-          <Route path="/sources" element={<SourcesPage />} />
+          <Route path="/tags"          element={<ProtectedRoute adminOnly><TagsPage /></ProtectedRoute>} />
+          <Route path="/sources"       element={<ProtectedRoute adminOnly><SourcesPage /></ProtectedRoute>} />
           <Route path="/notifications" element={<NotificationsPage />} />
-          <Route path="/hidden" element={<HiddenNewsPage />} />
-          <Route path="/lists/:id" element={<ListDetailPage />} />
-          <Route path="/feedback" element={<FeedbackPage />} />
-          <Route path="/admin" element={<ProtectedRoute adminOnly><AdminPage /></ProtectedRoute>} />
-          <Route path="/admin/users" element={<ProtectedRoute adminOnly><UsersPage /></ProtectedRoute>} />
-          <Route path="/admin/logs" element={<ProtectedRoute adminOnly><ScanLogsPage /></ProtectedRoute>} />
-          <Route path="/admin/quota" element={<ProtectedRoute adminOnly><QuotaPage /></ProtectedRoute>} />
-          <Route path="/admin/feedback" element={<ProtectedRoute adminOnly><AdminFeedbackPage /></ProtectedRoute>} />
-          <Route path="/admin/error-logs" element={<ProtectedRoute adminOnly><AdminErrorLogsPage /></ProtectedRoute>} />
-          <Route path="/admin/global" element={<ProtectedRoute adminOnly><GlobalSearchPage /></ProtectedRoute>} />
+          <Route path="/hidden"        element={<ProtectedRoute adminOnly><HiddenNewsPage /></ProtectedRoute>} />
+          <Route path="/lists/:id"     element={<ListDetailPage />} />
+          <Route path="/feedback"      element={<FeedbackPage />} />
+          <Route path="/admin"               element={<ProtectedRoute adminOnly><AdminPage /></ProtectedRoute>} />
+          <Route path="/admin/users"         element={<ProtectedRoute adminOnly><UsersPage /></ProtectedRoute>} />
+          <Route path="/admin/logs"          element={<ProtectedRoute adminOnly><ScanLogsPage /></ProtectedRoute>} />
+          <Route path="/admin/quota"         element={<ProtectedRoute superAdminOnly><QuotaPage /></ProtectedRoute>} />
+          <Route path="/admin/feedback"      element={<ProtectedRoute superAdminOnly><AdminFeedbackPage /></ProtectedRoute>} />
+          <Route path="/admin/error-logs"    element={<ProtectedRoute adminOnly><AdminErrorLogsPage /></ProtectedRoute>} />
+          <Route path="/admin/global"        element={<ProtectedRoute adminOnly><GlobalSearchPage /></ProtectedRoute>} />
         </Routes>
         <footer style={{
           marginTop: 'auto', flexShrink: 0,

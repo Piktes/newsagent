@@ -7,7 +7,7 @@ import html as _html
 import io
 import os
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -15,10 +15,10 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import or_, desc, asc, func
 from sqlalchemy.orm import Session
 
-from auth import get_current_user
+from auth import get_current_user, require_super_admin
 from database import get_db
-from models import NewsItem, Tag, User, SourceType
-from schemas import NewsItemResponse, NoteUpdateRequest
+from models import NewsItem, Tag, User, UserRole, UserNewsState, NewsHide, SourceType
+from schemas import NewsItemResponse, NoteUpdateRequest, UserNewsStateResponse, NewsHideCreate, NewsHideResponse
 
 # ── PDF font setup (runs once at import) ────────────────────────────────────
 try:
@@ -119,18 +119,49 @@ def list_news(
     current_user: User = Depends(get_current_user)
 ):
     from models import Tag as TagModel
-    q = db.query(NewsItem).filter(
-        NewsItem.user_id == current_user.id,
-        NewsItem.is_hidden == (True if show_hidden else False)
-    )
+    from sqlalchemy import not_, and_
+
+    if current_user.role == UserRole.USER:
+        # Kullanıcı: sadece yayınlanmış etiketlerin haberleri
+        published_tag_ids = [
+            t.id for t in db.query(TagModel).filter(TagModel.is_published == True).all()
+        ]
+        if not published_tag_ids:
+            return []
+
+        # Gizleme filtresi: user_id veya department_id eşleşen kayıtları dışla
+        hidden_news_ids = db.query(NewsHide.news_item_id).filter(
+            (NewsHide.user_id == current_user.id) |
+            (NewsHide.department_id == current_user.department_id)
+        ).subquery()
+
+        q = db.query(NewsItem).filter(
+            NewsItem.tag_id.in_(published_tag_ids),
+            NewsItem.is_hidden == False,
+            ~NewsItem.id.in_(hidden_news_ids)
+        )
+    else:
+        # Admin / Süper Admin: kendi haberleri
+        q = db.query(NewsItem).filter(
+            NewsItem.user_id == current_user.id,
+            NewsItem.is_hidden == (True if show_hidden else False)
+        )
 
     if breaking_only:
-        breaking_tag_ids = [
-            t.id for t in db.query(TagModel).filter(
-                TagModel.user_id == current_user.id,
-                TagModel.is_breaking == True
-            ).all()
-        ]
+        if current_user.role == UserRole.USER:
+            breaking_tag_ids = [
+                t.id for t in db.query(TagModel).filter(
+                    TagModel.is_published == True,
+                    TagModel.is_breaking == True
+                ).all()
+            ]
+        else:
+            breaking_tag_ids = [
+                t.id for t in db.query(TagModel).filter(
+                    TagModel.user_id == current_user.id,
+                    TagModel.is_breaking == True
+                ).all()
+            ]
         if not breaking_tag_ids:
             return []
         q = q.filter(NewsItem.tag_id.in_(breaking_tag_ids))
@@ -321,21 +352,32 @@ def bulk_mark_read(
     return {"marked_read": count}
 
 
+def _get_or_create_state(db: Session, user_id: int, news_item_id: int) -> UserNewsState:
+    """UserNewsState kaydını getirir, yoksa oluşturur."""
+    state = db.query(UserNewsState).filter(
+        UserNewsState.user_id == user_id,
+        UserNewsState.news_item_id == news_item_id
+    ).first()
+    if not state:
+        state = UserNewsState(user_id=user_id, news_item_id=news_item_id)
+        db.add(state)
+        db.flush()
+    return state
+
+
 @router.put("/{news_id}/read")
 def toggle_read(
     news_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    item = db.query(NewsItem).filter(
-        NewsItem.id == news_id, NewsItem.user_id == current_user.id
-    ).first()
-    if not item:
+    if not db.query(NewsItem).filter(NewsItem.id == news_id).first():
         raise HTTPException(status_code=404, detail="Haber bulunamadi")
-
-    item.is_read = not item.is_read
+    state = _get_or_create_state(db, current_user.id, news_id)
+    state.is_read = not state.is_read
+    state.updated_at = datetime.now(timezone.utc)
     db.commit()
-    return {"is_read": item.is_read}
+    return {"is_read": state.is_read}
 
 
 @router.put("/{news_id}/favorite")
@@ -344,15 +386,13 @@ def toggle_favorite(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    item = db.query(NewsItem).filter(
-        NewsItem.id == news_id, NewsItem.user_id == current_user.id
-    ).first()
-    if not item:
+    if not db.query(NewsItem).filter(NewsItem.id == news_id).first():
         raise HTTPException(status_code=404, detail="Haber bulunamadi")
-
-    item.is_favorite = not item.is_favorite
+    state = _get_or_create_state(db, current_user.id, news_id)
+    state.is_favorite = not state.is_favorite
+    state.updated_at = datetime.now(timezone.utc)
     db.commit()
-    return {"is_favorite": item.is_favorite}
+    return {"is_favorite": state.is_favorite}
 
 
 @router.put("/{news_id}/hide")
@@ -361,6 +401,7 @@ def toggle_hide(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    """Admin'in kendi haberlerini akıştan çıkarması (global is_hidden)."""
     item = db.query(NewsItem).filter(
         NewsItem.id == news_id, NewsItem.user_id == current_user.id
     ).first()
@@ -378,15 +419,81 @@ def update_note(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    item = db.query(NewsItem).filter(
-        NewsItem.id == news_id, NewsItem.user_id == current_user.id
-    ).first()
-    if not item:
+    if not db.query(NewsItem).filter(NewsItem.id == news_id).first():
         raise HTTPException(status_code=404, detail="Haber bulunamadi")
-
-    item.user_note = data.note
+    state = _get_or_create_state(db, current_user.id, news_id)
+    state.user_note = data.note
+    state.updated_at = datetime.now(timezone.utc)
     db.commit()
-    return {"user_note": item.user_note}
+    return {"user_note": state.user_note}
+
+
+# ─── Süper Admin: Haber Gizleme ──────────────────────────
+
+@router.post("/{news_id}/hide-for", response_model=NewsHideResponse)
+def hide_news_for(
+    news_id: int,
+    data: NewsHideCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_super_admin)
+):
+    """Belirli bir kullanıcı veya birim için haberi gizle."""
+    if not data.user_id and not data.department_id:
+        raise HTTPException(status_code=400, detail="user_id veya department_id gereklidir")
+    if data.user_id and data.department_id:
+        raise HTTPException(status_code=400, detail="Yalnızca biri seçilebilir: user_id veya department_id")
+    if not db.query(NewsItem).filter(NewsItem.id == news_id).first():
+        raise HTTPException(status_code=404, detail="Haber bulunamadı")
+
+    # Aynı kayıt zaten varsa döndür
+    existing = db.query(NewsHide).filter(
+        NewsHide.news_item_id == news_id,
+        NewsHide.user_id == data.user_id,
+        NewsHide.department_id == data.department_id,
+    ).first()
+    if existing:
+        return existing
+
+    hide = NewsHide(
+        news_item_id=news_id,
+        user_id=data.user_id,
+        department_id=data.department_id,
+        hidden_by_id=current_user.id,
+        hidden_at=datetime.now(timezone.utc),
+    )
+    db.add(hide)
+    db.commit()
+    db.refresh(hide)
+    return hide
+
+
+@router.delete("/{news_id}/hide-for", status_code=204)
+def unhide_news_for(
+    news_id: int,
+    data: NewsHideCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_super_admin)
+):
+    """Kullanıcı veya birim için gizlemeyi kaldır."""
+    hide = db.query(NewsHide).filter(
+        NewsHide.news_item_id == news_id,
+        NewsHide.user_id == data.user_id,
+        NewsHide.department_id == data.department_id,
+    ).first()
+    if not hide:
+        raise HTTPException(status_code=404, detail="Gizleme kaydı bulunamadı")
+    db.delete(hide)
+    db.commit()
+
+
+@router.get("/{news_id}/hide-for", response_model=List[NewsHideResponse])
+def list_hides_for_news(
+    news_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_super_admin)
+):
+    """Bu haberin gizlendiği kullanıcı/birim listesi."""
+    return db.query(NewsHide).filter(NewsHide.news_item_id == news_id).all()
 
 
 @router.get("/export/csv")
