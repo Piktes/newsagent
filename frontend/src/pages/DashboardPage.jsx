@@ -7,7 +7,7 @@ import {
   ArrowUpDown, Tag, BarChart2, SlidersHorizontal,
 } from 'lucide-react';
 import { FaYoutube, FaXTwitter } from 'react-icons/fa6';
-import { newsApi, tagsApi } from '../services/api';
+import { newsApi, tagsApi, sourcesApi } from '../services/api';
 import NewsCard from '../components/NewsCard';
 import TrendsPanel from '../components/TrendsPanel';
 
@@ -202,6 +202,8 @@ export default function DashboardPage() {
   const [sortOrder, setSortOrder] = useState('desc');
   const [selectedTagId, setSelectedTagId] = useState('');
   const [selectedSentiment, setSelectedSentiment] = useState('');
+  const [selectedSourceId, setSelectedSourceId] = useState('');
+  const [customSources, setCustomSources] = useState([]);
   const [scanning, setScanning] = useState(false);
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
@@ -236,6 +238,7 @@ export default function DashboardPage() {
       if (tagFilter) params.tag_id = tagFilter;
       if (debouncedQuery) params.query = debouncedQuery;
       if (selectedSentiment) params.sentiment = selectedSentiment;
+      if (selectedSourceId) params.source_id = selectedSourceId;
       if (!allPlatforms) params.source_types = platforms;
 
       if (isToday) {
@@ -289,7 +292,8 @@ export default function DashboardPage() {
     fetchNews();
     fetchCounts();
     tagsApi.list().then(r => setTags(r.data)).catch(() => {});
-  }, [tagFilter, page, sortOrder, debouncedQuery, selectedSentiment, isToday, dateFrom, dateTo, selectedPlatforms]);
+    sourcesApi.list().then(r => setCustomSources(r.data)).catch(() => {});
+  }, [tagFilter, page, sortOrder, debouncedQuery, selectedSentiment, selectedSourceId, isToday, dateFrom, dateTo, selectedPlatforms]);
 
   // Debounce searchQuery → debouncedQuery
   useEffect(() => {
@@ -505,6 +509,14 @@ export default function DashboardPage() {
         )}
       </div>
 
+      {/* Bugün Ne Oldu — 09:00 otomatik tarama notu */}
+      {isToday && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.6rem 0.9rem', marginBottom: '1rem', borderRadius: 'var(--radius)', background: 'rgba(0,112,243,0.06)', border: '1px solid rgba(0,112,243,0.18)', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+          <span style={{ fontSize: '1rem' }}>🕘</span>
+          <span>Her gün <strong>saat 09:00</strong>'da tüm kaynaklardan yeni haberler otomatik çekilir ve günün <strong>bülteni</strong> hazırlanır.</span>
+        </div>
+      )}
+
       {/* Active tag banner */}
       {activeTag && (
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.5rem 1rem', marginBottom: '1rem', borderRadius: 'var(--radius)', background: `${activeTag.color}14`, boxShadow: `${activeTag.color}44 0px 0px 0px 1px` }}>
@@ -636,6 +648,19 @@ export default function DashboardPage() {
               {tags.map(tag => <option key={tag.id} value={tag.id}>{tag.name}</option>)}
             </select>
           </div>
+
+          {customSources.length > 0 && (
+            <>
+              <div className="filter-divider" />
+              <div className="filter-group">
+                <span className="filter-label">📌 Özel Kaynak</span>
+                <select className="filter-select" value={selectedSourceId} onChange={(e) => { setSelectedSourceId(e.target.value); setPage(1); }}>
+                  <option value="">Tümü</option>
+                  {customSources.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
+              </div>
+            </>
+          )}
 
           <div className="filter-divider" />
 

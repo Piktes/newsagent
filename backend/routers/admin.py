@@ -2,21 +2,23 @@
 Haberajani - Admin Router
 Dashboard stats, SMTP settings, scan logs (admin only).
 """
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
-from sqlalchemy import desc
+from sqlalchemy import desc, func
 from typing import List
+from datetime import datetime, timezone, timedelta
 
 from database import get_db
 from models import (
     User, Tag, NewsSource, NewsItem, ScanLog, SmtpSettings, ApiQuota,
-    EventRegistryUsageLog, ErrorLog
+    EventRegistryUsageLog, XUsageLog, XCallQuota, ErrorLog
 )
 from schemas import (
     DashboardStats, SmtpSettingsUpdate, SmtpSettingsResponse,
     ScanLogResponse, ApiQuotaResponse, ErrorLogResponse
 )
-from auth import require_admin
+from auth import require_admin, require_super_admin
 
 router = APIRouter(prefix="/api/admin", tags=["Admin"])
 
@@ -234,13 +236,93 @@ def clear_er_logs(
     db.commit()
 
 
+# ─── Kullanici bazinda kullanim ozeti (pasta grafik) ─────
+
+def _usage_by_user(db, model, amount_col, days):
+    """Verilen kullanim-log modelini son `days` gun icin kullaniciya gore ozetler."""
+    since = datetime.now(timezone.utc) - timedelta(days=max(days, 1))
+    rows = (
+        db.query(
+            model.username.label("username"),
+            func.coalesce(func.sum(amount_col), 0).label("amount"),
+            func.count(model.id).label("calls"),
+        )
+        .filter(model.created_at >= since)
+        .group_by(model.username)
+        .order_by(func.sum(amount_col).desc())
+        .all()
+    )
+    total = sum(int(r.amount) for r in rows)
+    users = [
+        {
+            "username": r.username or "sistem",
+            "requests": int(r.amount),
+            "calls": int(r.calls),
+            "pct": round(int(r.amount) / total * 100, 1) if total > 0 else 0,
+        }
+        for r in rows
+    ]
+    return {"total": total, "users": users}
+
+
+@router.get("/er-usage-by-user")
+def er_usage_by_user(
+    response: Response,
+    days: int = 90,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    response.headers["Cache-Control"] = "no-store"
+    return _usage_by_user(db, EventRegistryUsageLog, EventRegistryUsageLog.tokens_used, days)
+
+
+@router.get("/x-usage-by-user")
+def x_usage_by_user(
+    response: Response,
+    days: int = 90,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    response.headers["Cache-Control"] = "no-store"
+    return _usage_by_user(db, XUsageLog, XUsageLog.requests_used, days)
+
+
+@router.get("/x-usage-by-kind")
+def x_usage_by_kind(
+    response: Response,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    """X cagrilarini turune gore ozetler (trend / genel arama / hesap aramasi / dogrulama).
+    Cagri kotasi sayaci ile ayni pencere (son reset'ten beri)."""
+    response.headers["Cache-Control"] = "no-store"
+    quota = db.query(XCallQuota).first()
+    q = db.query(
+        XUsageLog.kind.label("kind"),
+        func.coalesce(func.sum(XUsageLog.requests_used), 0).label("cnt"),
+    ).group_by(XUsageLog.kind)
+    if quota and quota.reset_at:
+        q = q.filter(XUsageLog.created_at >= quota.reset_at)
+    rows = q.all()
+    total = sum(int(r.cnt) for r in rows)
+    kinds = [
+        {"kind": r.kind or "other", "count": int(r.cnt),
+         "pct": round(int(r.cnt) / total * 100, 1) if total > 0 else 0}
+        for r in rows
+    ]
+    kinds.sort(key=lambda x: -x["count"])
+    return {"total": total, "kinds": kinds}
+
+
 # ─── X (Twitter) API Usage ───────────────────────────────
 
 @router.get("/x-usage")
 def get_x_usage(
+    response: Response,
     days: int = 7,
     admin: User = Depends(require_admin)
 ):
+    response.headers["Cache-Control"] = "no-store"
     if not X_BEARER_TOKEN:
         raise HTTPException(status_code=503, detail="X Bearer Token yapılandırılmamış")
     import requests
@@ -256,25 +338,131 @@ def get_x_usage(
             status_code = 400 if res.status_code == 401 else res.status_code
             raise HTTPException(status_code=status_code, detail=f"X API yanıtı: {res.text}")
         data = res.json().get("data", {})
+
+        # X'in usage/tweets ucundan GELEN GERCEK alanlar:
+        #  - project_cap   : aylik post-cekme tavani (cap_reset_day'de sifirlanir)
+        #  - project_usage : bu donemdeki kullanim
+        #  - daily_*       : son N gunun gunluk gercek kullanimi
         project_cap = int(data.get("project_cap", 0) or 0)
         project_usage = int(data.get("project_usage", 0) or 0)
+        cap_reset_day = data.get("cap_reset_day")
         daily = data.get("daily_project_usage", {}).get("usage", [])
-        
-        print("X USAGE TYPES:", type(project_cap), repr(project_cap), type(project_usage), repr(project_usage))
-        
+        window_used = sum(int(d.get("usage", 0) or 0) for d in daily)  # secili penceredeki gercek toplam
+
+        # GERCEK kredi durumu: usage/tweets on-odemeli krediyi VERMIYOR.
+        # Yalnizca gercek bir arama denemesi soyluyor: 402 => krediler tukendi.
+        credits_depleted = None
+        try:
+            probe = requests.get(
+                "https://api.x.com/2/tweets/search/recent",
+                headers={"Authorization": f"Bearer {X_BEARER_TOKEN}"},
+                params={"query": "the", "max_results": 10},
+                timeout=8,
+            )
+            if probe.status_code == 402:
+                credits_depleted = True
+            elif probe.status_code == 200:
+                credits_depleted = False
+        except Exception:
+            pass
+
         return {
-            "project_cap": project_cap,
-            "project_usage": project_usage,
+            "project_cap": project_cap,                           # GERCEK: X aylik post tavani
+            "project_usage": project_usage,                       # GERCEK: bu donem kullanim
             "remaining": max(project_cap - project_usage, 0),
-            "used_pct": round(project_usage / project_cap * 100, 1) if project_cap > 0 else 0,
-            "daily_usage": daily,
+            "used_pct": round(project_usage / project_cap * 100, 1) if project_cap else 0,
+            "cap_reset_day": cap_reset_day,                       # tavan her ay bu gun sifirlanir
+            "daily_usage": daily,                                 # GERCEK gunluk kirilim
+            "window_used": window_used,                           # GERCEK: secili penceredeki toplam istek
             "cost_per_request": 0.005,
-            "estimated_cost": round(project_usage * 0.005, 4),
+            "window_cost": round(window_used * 0.005, 4),
+            "credits_depleted": credits_depleted,                # GERCEK kredi durumu (402 ile)
         }
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"X API erişilemedi: {e}")
+
+
+# ─── X Cagri Kotasi (elle yonetilen) ─────────────────────
+# X cagri/istek sayisini API'den vermedigi icin, super_admin toplam kotayi
+# girer; her X cagrisi x_usage_logs'a dustugu icin sayac otomatik isler.
+
+class XCallQuotaUpdate(BaseModel):
+    total_quota: int
+    reset: bool = False
+
+
+def _x_calls_used(db, quota) -> int:
+    q = db.query(func.coalesce(func.sum(XUsageLog.requests_used), 0))
+    if quota and quota.reset_at:
+        q = q.filter(XUsageLog.created_at >= quota.reset_at)
+    return int(q.scalar() or 0)
+
+
+def _x_quota_payload(db, quota) -> dict:
+    total = quota.total_quota or 0
+    used = _x_calls_used(db, quota)
+    return {
+        "total_quota": total,
+        "used": used,
+        "remaining": max(total - used, 0),
+        "used_pct": round(used / total * 100, 1) if total > 0 else 0,
+        "reset_at": quota.reset_at.isoformat() if quota.reset_at else None,
+        "updated_by": quota.updated_by,
+        "updated_at": quota.updated_at.isoformat() if quota.updated_at else None,
+    }
+
+
+def _get_or_create_quota(db) -> XCallQuota:
+    quota = db.query(XCallQuota).first()
+    if not quota:
+        quota = XCallQuota(total_quota=0, updated_at=datetime.now(timezone.utc))
+        db.add(quota)
+        db.commit()
+        db.refresh(quota)
+    return quota
+
+
+@router.get("/x-call-quota")
+def get_x_call_quota(
+    response: Response,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    response.headers["Cache-Control"] = "no-store"
+    return _x_quota_payload(db, _get_or_create_quota(db))
+
+
+@router.put("/x-call-quota")
+def set_x_call_quota(
+    payload: XCallQuotaUpdate,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_super_admin),
+):
+    quota = _get_or_create_quota(db)
+    quota.total_quota = max(payload.total_quota, 0)
+    if payload.reset:
+        quota.reset_at = datetime.now(timezone.utc)
+    quota.updated_by = admin.username
+    quota.updated_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(quota)
+    return _x_quota_payload(db, quota)
+
+
+@router.post("/x-call-quota/reset")
+def reset_x_call_quota(
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_super_admin),
+):
+    quota = _get_or_create_quota(db)
+    quota.reset_at = datetime.now(timezone.utc)
+    quota.updated_by = admin.username
+    quota.updated_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(quota)
+    return _x_quota_payload(db, quota)
 
 
 # ─── Scan Logs ────────────────────────────────────────────

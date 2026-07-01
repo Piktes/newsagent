@@ -5,7 +5,7 @@ import { tagsApi, newsApi } from '../services/api';
 import {
   Newspaper, Calendar, Star, Tags, Bell, EyeOff,
   BarChart, Users, FileText, Zap, LogOut, Sun, Moon, Gauge, Radio,
-  MessageSquare, AlertTriangle, Wrench, Globe
+  MessageSquare, AlertTriangle, Wrench, Globe, Mail, BookOpen
 } from 'lucide-react';
 
 const NAV_ITEMS = [
@@ -18,11 +18,13 @@ const NAV_ITEMS = [
   { path: '/tags', icon: <Tags size={18} />, label: 'Etiketler', key: 'tags' },
   { path: '/sources', icon: <Radio size={18} />, label: 'Kaynaklar', key: 'sources' },
   { path: '/notifications', icon: <Bell size={18} />, label: 'Bildirimler', key: 'notifs' },
+  { path: '/bulletin', icon: <Mail size={18} />, label: 'Bülten', key: 'bulletin', userOnly: true },
   { path: '/feedback', icon: <MessageSquare size={18} />, label: 'Sorun Bildir', key: 'feedback', userOnly: true },
 ];
 
 const ADMIN_ITEMS = [
   { path: '/admin',             icon: <BarChart size={18} />,    label: 'Yönetim Paneli' },
+  { path: '/admin/bulletin',    icon: <BookOpen size={18} />,    label: 'Bülten' },
   { path: '/admin/users',       icon: <Users size={18} />,       label: 'Kullanıcılar' },
   { path: '/admin/logs',        icon: <FileText size={18} />,    label: 'Tarama Logları' },
   { path: '/admin/quota',       icon: <Gauge size={18} />,       label: 'API Kotası',             superAdminOnly: true },

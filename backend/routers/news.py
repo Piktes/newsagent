@@ -104,6 +104,8 @@ def list_news(
     tag_id: Optional[int] = None,
     source_types: Optional[List[SourceType]] = Query(None),
     source_type: Optional[SourceType] = None,
+    source_id: Optional[int] = None,
+    custom_only: bool = False,
     is_favorite: Optional[bool] = None,
     is_read: Optional[bool] = None,
     show_hidden: bool = False,
@@ -172,6 +174,11 @@ def list_news(
 
     if tag_id:
         q = q.filter(NewsItem.tag_id == tag_id)
+    # Özel kaynak filtresi
+    if source_id:
+        q = q.filter(NewsItem.source_id == source_id)
+    elif custom_only:
+        q = q.filter(NewsItem.source_id.isnot(None))
     # Multi source_type filter takes precedence over single
     effective_types = source_types if source_types else ([source_type] if source_type else None)
     if effective_types:

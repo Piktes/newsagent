@@ -173,3 +173,70 @@ Tamamlanan geliştirmeler (commit: 44fb769, push edildi):
 - Frontend: App.jsx rota kısıtlamaları (adminOnly / superAdminOnly)
 - Feedback cevaplama → yalnızca super_admin
 - API Kota sayfası → yalnızca super_admin
+
+## Etiket Arama Mantığı (match_mode + context_ops)
+
+Etiket araması iki katmanlıdır: **ana ifade** (`must_phrase`) + **bağlam kelimeleri** (`context_keywords`).
+
+- **`Tag.match_mode`** (`phrase` | `all_words`): ana ifade nasıl eşleşir?
+  - `phrase` (varsayılan): kelimeler **yan yana/sıralı** geçmeli (tam ifade). Post-filtrede `must in combined_text`.
+  - `all_words`: ifadedeki **her kelime** geçsin, sıra önemsiz. Post-filtrede `all(w in combined_text)`.
+  - Upstream'e etkisi: `phrase` → tırnaklı/exact; `all_words` → tırnaksız. Motorlara `exact: bool` bayrağı
+    geçilir (`engines/*` search imzaları). NewsAPI: `phrase`→tek keyword, `all_words`→kelime listesi + `keywordOper=and`.
+- **`Tag.context_ops`** (JSON, n-1 bağlaç): bağlam kelimeleri arası **per-kelime VE/VEYA**.
+  `scheduler.context_groups()` VE aynı gruba ekler, VEYA yeni grup açar → sonuç `OR(AND-grupları)` (VE önceliği).
+  `eval_context()` bunu değerlendirir. `context_oper='off'` = SERBEST (bağlamı filtre olarak kullanma).
+  Eski etiketler (context_ops yok) `context_oper` ile geriye uyumlu.
+- Frontend `TagsPage.jsx`: eşleşme tipi seçici + çip aralarında tıklanabilir VE/VEYA rozetleri + **canlı parantezli önizleme** (`buildPreview`).
+
+## Kaynak Tarama Davranışı
+
+- **Ücretsiz motorlar (rss/youtube/web/twitter) HER ZAMAN çalışır** — özel kaynaklara EK (eski "ya hep ya hiç"
+  davranışı kaldırıldı). `scheduler.scan_for_user_tag` içinde free_engines + custom sources ardışık taranır.
+- **`NewsItem.source_id`**: haber bir özel kaynaktan geldiyse o `news_sources.id` ile işaretlenir.
+  `NewsItem.source_custom_name` (property) kaynak adını verir. Frontend: NewsCard'da **"📌 Özel Kaynak" badge**;
+  DashboardPage'de **"Özel Kaynak" filtresi** (`source_id` / `custom_only` params — `routers/news.py:list_news`).
+- **NewsAPI limiti 200** (tarama başına `max_results=200`).
+- `Tag.published_by_username` (property) → yayınlayan admin kullanıcı adı (TagResponse'ta; UI'da "… tarafından").
+
+## Bülten Sistemi (Günlük Bülten)
+
+Her sabah **09:00 (Europe/Istanbul)** yayınlanmış her etiket için taze haber çekilir + **taslak** bülten oluşur
+(`scheduler.daily_bulletin_job`, `cron` job). **Otomatik gönderilmez** — admin/süperadmin önizler, haber çıkarır,
+onaylar, sonra abonelere gönderir.
+
+**Modeller:** `Bulletin` (date, tag_ids JSON, status: draft|approved|sent|failed, excluded_news_ids JSON,
+approved_by/at, sent_at), `BulletinDelivery` (bulletin_id, user_id, email, channel: email|whatsapp, status, error, sent_at).
+`User.phone_number` (WhatsApp), `User.bulletin_subscribed` (opt-out, varsayılan True).
+
+**Akış / dosyalar:**
+- `bulletin_service.py`: `bulletin_items()`, `generate_pdf()`, `send_bulletin()`, `resend_to_user()`.
+- `utils/pdf.py` `build_news_pdf(items, ...)`: mevcut `news.py:export_pdf` şablonuyla aynı görünüm + **her habere görsel** (thumbnail gömülür).
+- `utils/email.py` `send_email(..., attachments=[(name,bytes,'pdf')])`: **şifre sıfırlamayla aynı SMTP** (DB'deki aktif `SmtpSettings` → haberajani@meb.gov.tr).
+- `utils/whatsapp.py` `send_whatsapp_document()`: Meta Cloud API (env `WHATSAPP_TOKEN`/`WHATSAPP_PHONE_ID`; yoksa "yapılandırılmamış" olarak başarısız loglanır).
+- `routers/bulletin.py` (`/api/bulletin`): admin (list/get/items/exclude/include/approve/send/send-all/create/deliveries/resend/pdf) + kullanıcı (subscription, phone, my/archive, pdf).
+- Frontend: `BulletinAdminPage.jsx` (taslak önizleme + çıkar/onay/gönder + teslimat logları + tekrar gönder),
+  `BulletinUserPage.jsx` (abone ol/ayrıl + telefon + PDF arşivi), Sidebar'da rol bazlı "Bülten", DashboardPage'de 09:00 notu.
+
+## X (Twitter) API Kotası — kendi sayacımız
+
+X, çağrı/istek sayısı ve $ bakiyeyi API'den vermediği için **kendi kota sayacımızı** tutuyoruz:
+- **`XUsageLog`** (`x_usage_logs`): her X çağrısı `kind` (search|account|trends|verify) + user + `requests_used` ile loglanır (`twitter_engine._log_usage`).
+- **`XCallQuota`** (`x_call_quota`, tek satır): süperadmin **toplam kotayı** girer; her çağrı düşer; **sıfırlanabilir**.
+- Uçlar: `/api/admin/x-call-quota` (GET/PUT/reset — PUT/reset yalnız super_admin), `/api/admin/x-usage-by-user`, `/api/admin/x-usage-by-kind`.
+- `/api/admin/x-usage`: X'in `usage/tweets` ucundan **gerçek post-çekme tavanı** + **kredi durumu** (gerçek arama denemesiyle 402 "credits depleted" tespiti). Not: `usage/tweets` maliyeti/istek sayısını vermez (yalnız post sayısı).
+- Frontend: `QuotaPage.jsx` X sekmesi — çağrı kotası sayacı, çağrı türü kırılımı, kullanıcı bazında etkileşimli SVG pasta grafik.
+
+## Ek Migration'lar
+
+Şema değişikliklerinden sonra (hepsi idempotent, `py <dosya>` ile çalışır):
+```
+py migrate_tag_match_mode.py      # tags.match_mode
+py migrate_tag_context_ops.py     # tags.context_ops
+py migrate_x_usage_logs.py        # x_usage_logs (+ kind kolonu)
+py migrate_x_call_quota.py        # x_call_quota
+py migrate_bulletin.py            # bulletins, bulletin_deliveries, users.phone_number/bulletin_subscribed
+py migrate_news_source_id.py      # news_items.source_id
+```
+
+> **Login notu:** Giriş `username` alanı `User.email` ile eşleşir (`routers/users.py:login`) — kullanıcı adıyla değil **e-posta** ile giriş yapılır.

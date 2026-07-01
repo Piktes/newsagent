@@ -53,6 +53,7 @@ class NewsApiEngine(BaseNewsEngine):
         days_back: int = 30,
         must_phrase: str = None,
         context_keywords: list = None,
+        match_mode: str = "phrase",
     ) -> List[NewsResult]:
         if not self.api_key:
             return []
@@ -62,8 +63,12 @@ class NewsApiEngine(BaseNewsEngine):
 
         # must_phrase varsa onu kullan, yoksa tag adını kullan
         search_text = normalize_query(must_phrase if must_phrase else query)
-        # Tam ifade olarak gönder — tek öğeli dizi ER'de phrase araması yapar
-        keywords = [search_text]
+        # phrase: tek öğeli dizi → ER'de tam ifade (phrase) araması
+        # all_words: her kelime ayrı öğe + keywordOper="and" → hepsi geçsin (sıra önemsiz)
+        if match_mode == "all_words":
+            keywords = search_text.split() or [search_text]
+        else:
+            keywords = [search_text]
 
         results = []
         try:

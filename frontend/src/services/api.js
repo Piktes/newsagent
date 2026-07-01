@@ -149,9 +149,38 @@ export const adminApi = {
   getErLogs: (page, page_size) => api.get('/admin/er-logs', { params: { page, page_size } }),
   clearErLogs: () => api.delete('/admin/er-logs'),
   getXUsage: (days = 7) => api.get('/admin/x-usage', { params: { days } }),
+  getXUsageByUser: (days = 90) => api.get('/admin/x-usage-by-user', { params: { days } }),
+  getXUsageByKind: () => api.get('/admin/x-usage-by-kind'),
+  getErUsageByUser: (days = 90) => api.get('/admin/er-usage-by-user', { params: { days } }),
+  getXCallQuota: () => api.get('/admin/x-call-quota'),
+  setXCallQuota: (total_quota, reset = false) => api.put('/admin/x-call-quota', { total_quota, reset }),
+  resetXCallQuota: () => api.post('/admin/x-call-quota/reset'),
   getOverview: () => api.get('/admin/overview'),
   getErrorLogs: (level, limit = 100) => api.get('/admin/error-logs', { params: { level, limit } }),
   clearErrorLogs: () => api.delete('/admin/error-logs'),
+};
+
+// ─── Bülten ───────────────────────────────────────────
+export const bulletinApi = {
+  // admin
+  list: (params) => api.get('/bulletin/', { params: params || {} }),
+  get: (id) => api.get(`/bulletin/${id}`),
+  items: (id) => api.get(`/bulletin/${id}/items`),
+  create: (data) => api.post('/bulletin/create', data),
+  exclude: (id, news_id) => api.post(`/bulletin/${id}/exclude`, { news_id }),
+  include: (id, news_id) => api.post(`/bulletin/${id}/include`, { news_id }),
+  approve: (id) => api.post(`/bulletin/${id}/approve`),
+  send: (id) => api.post(`/bulletin/${id}/send`),
+  sendAll: () => api.post('/bulletin/send-all'),
+  deliveries: (id) => api.get(`/bulletin/${id}/deliveries`),
+  resend: (id, user_id) => api.post(`/bulletin/${id}/resend`, { user_id }),
+  pdf: (id) => api.get(`/bulletin/${id}/pdf`, { responseType: 'blob' }),
+  // user
+  getSubscription: () => api.get('/bulletin/subscription/me'),
+  subscribe: () => api.post('/bulletin/subscription/me'),
+  unsubscribe: () => api.delete('/bulletin/subscription/me'),
+  updatePhone: (phone_number) => api.put('/bulletin/phone/me', { phone_number }),
+  myArchive: () => api.get('/bulletin/my/archive'),
 };
 
 // ─── Feedback ─────────────────────────────────────────

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, Fragment } from 'react';
 import { tagsApi } from '../services/api';
 import { Tags, Zap, X, Radio } from 'lucide-react';
 import TrendsPanel from '../components/TrendsPanel';
@@ -16,26 +16,39 @@ const INTERVALS = [
 const EMPTY_FORM = {
   name: '',
   must_phrase: '',
+  match_mode: 'phrase',
   context_keywords: [],
-  context_oper: 'or',
+  context_ops: [],          // kelimeler arası bağlaçlar (n-1 adet): 'and' | 'or'
+  context_oper: 'and',      // 'off' = SERBEST (bağlamı zorunlu tutma); değilse per-kelime ops geçerli
   color: '#3B82F6',
   is_breaking: false,
   scan_interval_minutes: 30,
   is_published: false,
 };
 
-// ─── Canlı önizleme metni ─────────────────────────────────────────
-function buildPreview(must, keywords, oper) {
-  if (!must && keywords.length === 0) return null;
+// ─── Bağlam gruplama (VE aynı gruba, VEYA yeni grup) — backend ile aynı mantık ──
+function contextGroups(keywords, ops) {
+  if (!keywords || keywords.length === 0) return [];
+  const groups = [[keywords[0]]];
+  for (let i = 1; i < keywords.length; i++) {
+    const op = (ops && ops[i - 1]) || 'and';
+    if (op === 'or') groups.push([keywords[i]]);
+    else groups[groups.length - 1].push(keywords[i]);
+  }
+  return groups;
+}
+
+// ─── Canlı önizleme metni (parantezli) ────────────────────────────
+function buildPreview(must, keywords, ops, serbest) {
   if (!must) return null;
   const mustPart = `"${must}"`;
-  if (keywords.length === 0) return mustPart;
-  if (oper === 'off') return `${mustPart}  (+${keywords.length} bağlam aramada)`;
-  const sep = oper === 'and' ? ' VE ' : ' VEYA ';
-  const ctxPart = keywords.length === 1
-    ? keywords[0]
-    : `(${keywords.join(sep)})`;
-  return `${mustPart} VE ${ctxPart}`;
+  if (!keywords || keywords.length === 0) return mustPart;
+  if (serbest) return `${mustPart}  (+${keywords.length} bağlam aramaya yardımcı, zorunlu değil)`;
+  const groups = contextGroups(keywords, ops);
+  const groupStrs = groups.map(g => g.length === 1 ? g[0] : `(${g.join(' VE ')})`);
+  let ctxExpr = groupStrs.join(' VEYA ');
+  if (groups.length > 1) ctxExpr = `(${ctxExpr})`;
+  return `${mustPart} VE ${ctxExpr}`;
 }
 
 export default function TagsPage() {
@@ -70,18 +83,45 @@ export default function TagsPage() {
     const kw = raw.trim().replace(/,+$/, '');
     if (!kw) return;
     if (!form.context_keywords.includes(kw)) {
-      setForm(f => ({ ...f, context_keywords: [...f.context_keywords, kw] }));
+      setForm(f => ({
+        ...f,
+        context_keywords: [...f.context_keywords, kw],
+        // ilk kelimede bağlaç yok; sonrakiler için varsayılan 'and'
+        context_ops: f.context_keywords.length >= 1 ? [...(f.context_ops || []), 'and'] : [],
+      }));
     }
     setCtxInput('');
   };
 
   const removeCtxKw = (kw) =>
-    setForm(f => ({ ...f, context_keywords: f.context_keywords.filter(k => k !== kw) }));
+    setForm(f => {
+      const idx = f.context_keywords.indexOf(kw);
+      if (idx < 0) return f;
+      const ops = f.context_ops || [];
+      const newOps = idx === 0 ? ops.slice(1) : [...ops.slice(0, idx - 1), ...ops.slice(idx)];
+      return {
+        ...f,
+        context_keywords: f.context_keywords.filter((_, i) => i !== idx),
+        context_ops: newOps,
+      };
+    });
+
+  // Bir bağlaç rozetini VE ↔ VEYA arasında değiştir
+  const toggleCtxOp = (j) =>
+    setForm(f => {
+      const ops = [...(f.context_ops || [])];
+      ops[j] = ops[j] === 'or' ? 'and' : 'or';
+      return { ...f, context_ops: ops };
+    });
 
   const handleCtxKeyDown = (e) => {
     if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addCtxKw(ctxInput); }
     if (e.key === 'Backspace' && !ctxInput && form.context_keywords.length > 0) {
-      setForm(f => ({ ...f, context_keywords: f.context_keywords.slice(0, -1) }));
+      setForm(f => ({
+        ...f,
+        context_keywords: f.context_keywords.slice(0, -1),
+        context_ops: (f.context_ops || []).slice(0, -1),
+      }));
     }
   };
 
@@ -92,7 +132,9 @@ export default function TagsPage() {
     const payload = {
       name: form.name.trim() || form.must_phrase.trim(),
       must_phrase: form.must_phrase.trim() || null,
+      match_mode: form.match_mode,
       context_keywords: form.context_keywords.length > 0 ? form.context_keywords : null,
+      context_ops: form.context_ops && form.context_ops.length > 0 ? form.context_ops : null,
       context_oper: form.context_oper,
       color: form.color,
       language: 'tr',
@@ -121,8 +163,10 @@ export default function TagsPage() {
     setForm({
       name: tag.name || '',
       must_phrase: tag.must_phrase || '',
+      match_mode: tag.match_mode || 'phrase',
       context_keywords: tag.context_keywords || [],
-      context_oper: tag.context_oper || 'or',
+      context_ops: tag.context_ops || [],
+      context_oper: tag.context_oper || 'and',
       color: tag.color,
       is_breaking: tag.is_breaking ?? false,
       scan_interval_minutes: tag.scan_interval_minutes ?? 30,
@@ -189,7 +233,7 @@ export default function TagsPage() {
     marginBottom: '0.35rem',
   };
 
-  const preview = buildPreview(form.must_phrase, form.context_keywords, form.context_oper);
+  const preview = buildPreview(form.must_phrase, form.context_keywords, form.context_ops, form.context_oper === 'off');
 
   // ── render ────────────────────────────────────────────────────────
 
@@ -255,8 +299,39 @@ export default function TagsPage() {
               style={{ width: '100%', boxSizing: 'border-box' }}
             />
             <div style={hint}>
-              Haberin başlık veya içeriğinde bu kelimelerin <strong>hepsi</strong> geçmeli — sıra önemli değil.<br />
-              Örnek: <code style={{ fontSize: '0.7rem' }}>Yusuf Tekin</code> → hem "Yusuf" hem "Tekin" haberde olmalı.
+              {form.match_mode === 'all_words'
+                ? <>İfadedeki <strong>her kelime</strong> haberde geçsin — sıra/yan yana şart değil. Daha çok sonuç, daha çok gürültü.<br />Örnek: <code style={{ fontSize: '0.7rem' }}>Yusuf Tekin</code> → "Yusuf" ve "Tekin" haberde ayrı ayrı da geçse olur.</>
+                : <>Bu ifade haberde <strong>aynen</strong> (yan yana, sıralı) geçmeli. Kısa tutun — ek kelimeler için aşağıdaki <strong>Bağlam Kelimeleri</strong>'ni kullanın.<br />Örnek: <code style={{ fontSize: '0.7rem' }}>Yusuf Tekin</code> → "Yusuf Tekin" birlikte geçmeli ("Tekin … Yusuf" eşleşmez).</>}
+            </div>
+
+            {/* Eşleşme tipi */}
+            <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.6rem' }}>
+              {[
+                { val: 'phrase',    label: 'Tam ifade',    desc: 'Kelimeler yan yana / sıralı geçmeli. İsim ve kalıplar için ideal.' },
+                { val: 'all_words', label: 'Tüm kelimeler', desc: 'Her kelime haberde geçsin, sıra önemsiz. Daha geniş sonuç.' },
+              ].map(opt => {
+                const active = form.match_mode === opt.val;
+                return (
+                  <button
+                    key={opt.val}
+                    type="button"
+                    onClick={() => setForm(f => ({ ...f, match_mode: opt.val }))}
+                    title={opt.desc}
+                    style={{
+                      flex: 1, textAlign: 'left', cursor: 'pointer',
+                      padding: '0.45rem 0.6rem',
+                      borderRadius: 'var(--radius-sm)',
+                      border: active ? '1px solid var(--accent)' : '1px solid var(--border)',
+                      background: active ? 'rgba(0,112,243,0.08)' : 'transparent',
+                      color: active ? 'var(--accent-light)' : 'var(--text-secondary)',
+                      transition: 'all 0.15s',
+                    }}
+                  >
+                    <div style={{ fontSize: '0.8rem', fontWeight: 600 }}>{opt.label}</div>
+                    <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginTop: 2, lineHeight: 1.35 }}>{opt.desc}</div>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -283,30 +358,52 @@ export default function TagsPage() {
                 cursor: 'text',
               }}
             >
-              {form.context_keywords.map(kw => (
-                <span
-                  key={kw}
-                  style={{
-                    display: 'inline-flex', alignItems: 'center', gap: '0.2rem',
-                    padding: '0.15rem 0.45rem',
-                    borderRadius: 20,
-                    background: 'rgba(0,112,243,0.13)',
-                    border: '1px solid rgba(0,112,243,0.28)',
-                    fontSize: '0.78rem',
-                    color: 'var(--accent-light)',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  {kw}
-                  <button
-                    type="button"
-                    onClick={(e) => { e.stopPropagation(); removeCtxKw(kw); }}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', opacity: 0.6, padding: 0, display: 'flex', lineHeight: 1 }}
-                  >
-                    <X size={10} />
-                  </button>
-                </span>
-              ))}
+              {form.context_keywords.map((kw, i) => {
+                const serbest = form.context_oper === 'off';
+                const op = (form.context_ops && form.context_ops[i - 1]) || 'and';
+                return (
+                  <Fragment key={kw}>
+                    {i > 0 && (
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); if (!serbest) toggleCtxOp(i - 1); }}
+                        title={serbest ? 'SERBEST modda bağlaç uygulanmaz' : 'VE ↔ VEYA değiştir'}
+                        style={{
+                          padding: '0.1rem 0.4rem', borderRadius: 5,
+                          border: 'none', cursor: serbest ? 'default' : 'pointer',
+                          fontSize: '0.62rem', fontWeight: 800, letterSpacing: '0.04em',
+                          background: serbest ? 'var(--bg-card)' : (op === 'or' ? '#f59e0b' : 'var(--accent)'),
+                          color: serbest ? 'var(--text-muted)' : '#fff',
+                          opacity: serbest ? 0.5 : 1,
+                        }}
+                      >
+                        {op === 'or' ? 'VEYA' : 'VE'}
+                      </button>
+                    )}
+                    <span
+                      style={{
+                        display: 'inline-flex', alignItems: 'center', gap: '0.2rem',
+                        padding: '0.15rem 0.45rem',
+                        borderRadius: 20,
+                        background: 'rgba(0,112,243,0.13)',
+                        border: '1px solid rgba(0,112,243,0.28)',
+                        fontSize: '0.78rem',
+                        color: 'var(--accent-light)',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {kw}
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); removeCtxKw(kw); }}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', opacity: 0.6, padding: 0, display: 'flex', lineHeight: 1 }}
+                      >
+                        <X size={10} />
+                      </button>
+                    </span>
+                  </Fragment>
+                );
+              })}
               <input
                 ref={ctxRef}
                 value={ctxInput}
@@ -324,62 +421,20 @@ export default function TagsPage() {
             </div>
 
             <div style={hint}>
-              Zorunlu ifadeye ek kısıtlama ekler. Eklenmezse yalnızca arama ifadesi kullanılır.
+              Ana ifadeyi <strong>daraltan</strong> ek kelimeler. Her kelime çok kelimeli olabilir ("ziyaret etti" gibi — kendi içinde sıralı aranır).
+              {form.context_keywords.length > 1 && <> Aralarındaki <strong>VE / VEYA</strong> rozetine tıklayarak bağlacı değiştir (VE, VEYA'dan önceliklidir).</>}
             </div>
 
-            {/* AND/OR toggle — sadece keyword varsa göster */}
+            {/* SERBEST toggle — sadece keyword varsa göster */}
             {form.context_keywords.length > 0 && (
-              <div style={{
-                marginTop: '0.625rem',
-                padding: '0.625rem 0.75rem',
-                borderRadius: 'var(--radius-sm)',
-                background: 'var(--bg-secondary)',
-                border: '1px solid var(--border)',
-              }}>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.5rem', fontWeight: 500 }}>
-                  Bu kelimeler haberde nasıl geçmeli?
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                  {[
-                    { val: 'or',  label: 'En az biri yeterli',       tag: 'VEYA',    desc: 'Daha geniş sonuç — kelimelerden birini içeren haberler gelir.' },
-                    { val: 'and', label: 'Hepsi birden geçmeli',      tag: 'VE',      desc: 'Daha dar sonuç — tüm kelimeleri içeren haberler gelir.' },
-                    { val: 'off', label: 'Yalnızca aramada kullan',   tag: 'SERBEST', desc: 'Bağlamı filtre olarak kullanma — arama kalitesini artırır ama zorunlu tutmaz.' },
-                  ].map(opt => (
-                    <label
-                      key={opt.val}
-                      style={{
-                        display: 'flex', alignItems: 'flex-start', gap: '0.5rem',
-                        cursor: 'pointer', padding: '0.4rem 0.5rem',
-                        borderRadius: 6,
-                        background: form.context_oper === opt.val ? 'rgba(0,112,243,0.07)' : 'transparent',
-                        border: `1px solid ${form.context_oper === opt.val ? 'rgba(0,112,243,0.25)' : 'transparent'}`,
-                        transition: 'all 0.15s',
-                      }}
-                    >
-                      <input
-                        type="radio"
-                        name="context_oper"
-                        value={opt.val}
-                        checked={form.context_oper === opt.val}
-                        onChange={() => setForm(f => ({ ...f, context_oper: opt.val }))}
-                        style={{ marginTop: '0.1rem', flexShrink: 0 }}
-                      />
-                      <div>
-                        <div style={{ fontSize: '0.82rem', fontWeight: 500, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                          {opt.label}
-                          <span style={{
-                            fontSize: '0.65rem', padding: '1px 5px', borderRadius: 4,
-                            background: form.context_oper === opt.val ? 'var(--accent)' : 'var(--bg-card)',
-                            color: form.context_oper === opt.val ? '#fff' : 'var(--text-muted)',
-                            fontWeight: 700, letterSpacing: '0.03em',
-                          }}>{opt.tag}</span>
-                        </div>
-                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.1rem' }}>{opt.desc}</div>
-                      </div>
-                    </label>
-                  ))}
-                </div>
-              </div>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', marginTop: '0.6rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                <input
+                  type="checkbox"
+                  checked={form.context_oper === 'off'}
+                  onChange={(e) => setForm(f => ({ ...f, context_oper: e.target.checked ? 'off' : 'and' }))}
+                />
+                <span><strong>SERBEST</strong> — bağlamı zorunlu tutma (sadece aramaya yardımcı olsun, filtreleme)</span>
+              </label>
             )}
           </div>
 
@@ -528,7 +583,7 @@ export default function TagsPage() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.75rem' }}>
         {(
           tags.map(tag => {
-            const kwPreview = buildPreview(tag.must_phrase, tag.context_keywords || [], tag.context_oper || 'or');
+            const kwPreview = buildPreview(tag.must_phrase, tag.context_keywords || [], tag.context_ops || [], tag.context_oper === 'off');
             return (
               <div key={tag.id} className="tag-card" style={{ borderLeftColor: tag.color }}>
                 <div className="tag-card-header">
@@ -554,9 +609,11 @@ export default function TagsPage() {
                         {kw}
                       </span>
                     ))}
-                    <span style={{ fontSize: '0.62rem', padding: '1px 5px', borderRadius: 10, background: 'var(--bg-secondary)', color: 'var(--text-muted)' }}>
-                      {{ or: 'VEYA', and: 'VE', off: 'SERBEST' }[tag.context_oper || 'or'] ?? 'VEYA'}
-                    </span>
+                    {tag.context_oper === 'off' && (
+                      <span style={{ fontSize: '0.62rem', padding: '1px 5px', borderRadius: 10, background: 'var(--bg-secondary)', color: 'var(--text-muted)' }}>
+                        SERBEST
+                      </span>
+                    )}
                   </div>
                 )}
 
@@ -597,9 +654,9 @@ export default function TagsPage() {
                     <Radio size={11} />
                     {publishingId === tag.id ? '...' : tag.is_published ? 'Yayında' : 'Yayında değil'}
                   </button>
-                  {tag.is_published && tag.published_by_id && (
+                  {tag.is_published && (tag.published_by_username || tag.published_by_id) && (
                     <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>
-                      #{tag.published_by_id}
+                      {tag.published_by_username || `#${tag.published_by_id}`} tarafından
                     </span>
                   )}
                 </div>

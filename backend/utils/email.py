@@ -7,6 +7,48 @@ import os
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from email.mime.application import MIMEApplication
+
+
+def _smtp_config(smtp_cfg=None):
+    """SMTP ayarlarını DB (aktif) ya da env'den çözer."""
+    if smtp_cfg and smtp_cfg.host:
+        return (smtp_cfg.host, smtp_cfg.port or 587,
+                smtp_cfg.from_email or "haberajani@meb.gov.tr",
+                smtp_cfg.username or "", smtp_cfg.password or "")
+    return (os.getenv("SMTP_HOST", ""), int(os.getenv("SMTP_PORT", "25")),
+            os.getenv("SMTP_FROM", "haberajani@meb.gov.tr"),
+            os.getenv("SMTP_USER", ""), os.getenv("SMTP_PASS", ""))
+
+
+def send_email(to_email: str, subject: str, html: str, attachments=None, smtp_cfg=None) -> None:
+    """Genel e-posta gönderici. attachments: [(filename, bytes, mimetype_subtype)] ör. ('bulten.pdf', b'...', 'pdf')."""
+    host, port, from_addr, username, password = _smtp_config(smtp_cfg)
+    if not host:
+        raise RuntimeError("SMTP sunucusu tanımlanmamış (DB'de aktif SMTP ayarı yok, SMTP_HOST env de boş)")
+
+    msg = MIMEMultipart("mixed")
+    msg["Subject"] = subject
+    msg["From"] = from_addr
+    msg["To"] = to_email
+    msg.attach(MIMEText(html, "html", "utf-8"))
+
+    for att in (attachments or []):
+        filename, data, subtype = att
+        part = MIMEApplication(data, _subtype=subtype or "octet-stream")
+        part.add_header("Content-Disposition", "attachment", filename=filename)
+        msg.attach(part)
+
+    with smtplib.SMTP(host, port, timeout=15) as server:
+        server.ehlo()
+        try:
+            server.starttls()
+            server.ehlo()
+        except smtplib.SMTPNotSupportedError:
+            pass
+        if username and password:
+            server.login(username, password)
+        server.sendmail(from_addr, [to_email], msg.as_string())
 
 
 def send_password_reset_email(to_email: str, token: str, smtp_cfg=None) -> None:

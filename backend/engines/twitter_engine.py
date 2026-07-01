@@ -19,12 +19,39 @@ def _extract_username(url_or_handle: str) -> str:
     return s.lstrip("@").strip()
 
 
+def _log_usage(user_id, username, action, kind="other", requests=1):
+    """Her gercek X API cagrisini kullanici + tur bazinda kaydeder (cagri kotasi sayaci icin).
+    kind: search (genel arama) | account (hesap aramasi) | trends | verify"""
+    try:
+        from database import SessionLocal
+        from models import XUsageLog
+        db = SessionLocal()
+        try:
+            db.add(XUsageLog(
+                user_id=user_id,
+                username=username or "sistem",
+                action=action,
+                kind=kind,
+                requests_used=requests,
+            ))
+            db.commit()
+        finally:
+            db.close()
+    except Exception:
+        pass
+
+
 class TwitterEngine(BaseNewsEngine):
     """
     Search Twitter/X posts via X API v2.
     api_key is ignored — system X_BEARER_TOKEN from config is used.
     source.url stores @username for account-based search.
     """
+
+    def __init__(self, api_key=None, user_id=None, username=None):
+        super().__init__(api_key)
+        self.user_id = user_id
+        self.username = username
 
     def _get_client(self):
         from config import X_BEARER_TOKEN
@@ -38,29 +65,33 @@ class TwitterEngine(BaseNewsEngine):
             print(f"[Twitter] Tweepy başlatılamadı: {e}")
             return None
 
-    def search(self, query: str, language: str = "tr", max_results: int = 20) -> List[NewsResult]:
-        """Keyword search — quality filtered (has:links, -is:retweet)."""
+    def search(self, query: str, language: str = "tr", max_results: int = 20, exact: bool = True) -> List[NewsResult]:
+        """Keyword search — quality filtered (has:links, -is:retweet).
+        exact=False ise ifade tırnaksız gider (X kelimeleri AND yapar — all_words modu)."""
         client = self._get_client()
         if not client:
             return []
         lang = "tr" if language == "tr" else "en"
-        q = f'"{query}" lang:{lang} -is:retweet has:links'
-        return self._run_search(client, q, max_results)
+        _q = f'"{query}"' if exact else query
+        q = f'{_q} lang:{lang} -is:retweet has:links'
+        return self._run_search(client, q, max_results, kind="search")
 
     def search_account(self, url_or_handle: str, query: str,
-                       language: str = "tr", max_results: int = 20) -> List[NewsResult]:
+                       language: str = "tr", max_results: int = 20, exact: bool = True) -> List[NewsResult]:
         """Fetch tweets from a specific account, optionally filtered by keyword."""
         client = self._get_client()
         if not client:
             return []
         username = _extract_username(url_or_handle)
         if query:
-            q = f'"{query}" from:{username}'
+            _q = f'"{query}"' if exact else query
+            q = f'{_q} from:{username}'
         else:
             q = f'from:{username} -is:retweet'
-        return self._run_search(client, q, max_results)
+        return self._run_search(client, q, max_results, kind="account", account=username)
 
-    def _run_search(self, client, query: str, max_results: int = 20, days_back: int = 7) -> List[NewsResult]:
+    def _run_search(self, client, query: str, max_results: int = 20, days_back: int = 7,
+                    kind: str = "search", account: str = None) -> List[NewsResult]:
         results = []
         try:
             start_time = datetime.now(timezone.utc) - timedelta(days=days_back)
@@ -74,6 +105,9 @@ class TwitterEngine(BaseNewsEngine):
                 user_fields=["name", "username", "profile_image_url"],
                 start_time=start_time,
             )
+            _action = (f"Hesap araması @{account}: {query[:80]}" if kind == "account"
+                       else f"Tweet araması: {query[:120]}")
+            _log_usage(self.user_id, self.username, _action, kind=kind)
 
             if not response.data:
                 return results
@@ -134,6 +168,7 @@ class TwitterEngine(BaseNewsEngine):
                 timeout=10,
             )
             if resp.status_code == 200:
+                _log_usage(self.user_id, self.username, f"Trend kontrolü (woeid={woeid})", kind="trends")
                 return resp.json().get("data", [])
             print(f"[Twitter Trends] HTTP {resp.status_code}: {resp.text[:300]}")
             return []
@@ -190,6 +225,7 @@ class TwitterEngine(BaseNewsEngine):
             )
         except Exception as e:
             raise Exception(f"X API hatası: {e}")
+        _log_usage(self.user_id, self.username, f"Hesap doğrulama: @{username}", kind="verify")
 
         if not response.data:
             return {"exists": False, "username": username}

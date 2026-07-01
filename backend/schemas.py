@@ -5,7 +5,7 @@ Request/Response models for API endpoints.
 import json as _json
 from pydantic import BaseModel, EmailStr, Field, field_validator
 from typing import Optional, List
-from datetime import datetime
+from datetime import datetime, date as _date
 from models import UserRole, SourceType, Language, NotificationMethod, ScanStatus, TicketType, TicketStatus
 
 
@@ -74,7 +74,9 @@ class ChangePasswordRequest(BaseModel):
 class TagCreate(BaseModel):
     name: str = Field(min_length=1, max_length=100)
     must_phrase: Optional[str] = None
+    match_mode: str = "phrase"   # phrase | all_words
     context_keywords: Optional[List[str]] = None
+    context_ops: Optional[List[str]] = None   # kelimeler arası bağlaçlar (n-1 adet)
     context_oper: str = "or"
     color: str = "#3B82F6"
     language: Language = Language.BOTH
@@ -86,7 +88,9 @@ class TagCreate(BaseModel):
 class TagUpdate(BaseModel):
     name: Optional[str] = None
     must_phrase: Optional[str] = None
+    match_mode: Optional[str] = None
     context_keywords: Optional[List[str]] = None
+    context_ops: Optional[List[str]] = None
     context_oper: Optional[str] = None
     color: Optional[str] = None
     language: Optional[Language] = None
@@ -99,7 +103,9 @@ class TagResponse(BaseModel):
     id: int
     name: str
     must_phrase: Optional[str] = None
+    match_mode: str = "phrase"
     context_keywords: Optional[List[str]] = None
+    context_ops: Optional[List[str]] = None
     context_oper: str = "or"
     color: str
     language: Language
@@ -109,11 +115,12 @@ class TagResponse(BaseModel):
     last_scan_items_found: Optional[int] = None
     is_published: bool = False
     published_by_id: Optional[int] = None
+    published_by_username: Optional[str] = None
     published_at: Optional[datetime] = None
     user_id: int
     created_at: Optional[datetime] = None
 
-    @field_validator("context_keywords", mode="before")
+    @field_validator("context_keywords", "context_ops", mode="before")
     @classmethod
     def parse_context_keywords(cls, v):
         if isinstance(v, str):
@@ -181,6 +188,8 @@ class NewsItemResponse(BaseModel):
     is_trending: bool = False
     retweet_count: Optional[int] = None
     like_count: Optional[int] = None
+    source_id: Optional[int] = None
+    source_custom_name: Optional[str] = None
     tag_id: int
     tag_name: Optional[str] = None
     tag_color: Optional[str] = None
@@ -393,3 +402,58 @@ class DashboardStats(BaseModel):
     total_sources: int
     total_users: int
     last_scan: Optional[datetime]
+
+
+# ─── Bülten ───────────────────────────────────────────────
+
+class BulletinResponse(BaseModel):
+    id: int
+    date: _date
+    tag_ids: List[int] = []
+    title: Optional[str] = None
+    status: str
+    excluded_news_ids: List[int] = []
+    item_count: Optional[int] = None
+    created_at: Optional[datetime] = None
+    approved_by_id: Optional[int] = None
+    approved_at: Optional[datetime] = None
+    sent_at: Optional[datetime] = None
+
+    @field_validator("tag_ids", "excluded_news_ids", mode="before")
+    @classmethod
+    def _parse_json_list(cls, v):
+        if isinstance(v, str):
+            try:
+                return _json.loads(v)
+            except Exception:
+                return []
+        return v or []
+
+    class Config:
+        from_attributes = True
+
+
+class BulletinCreate(BaseModel):
+    tag_ids: List[int]
+    title: Optional[str] = None
+    date: Optional[_date] = None
+
+
+class BulletinDeliveryResponse(BaseModel):
+    id: int
+    user_id: Optional[int] = None
+    username: Optional[str] = None
+    email: Optional[str] = None
+    channel: str
+    status: str
+    error: Optional[str] = None
+    sent_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+class SubscriptionResponse(BaseModel):
+    subscribed: bool
+    email: Optional[str] = None
+    phone_number: Optional[str] = None
