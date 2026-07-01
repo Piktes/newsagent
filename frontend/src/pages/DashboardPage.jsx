@@ -19,6 +19,11 @@ const SOURCE_OPTIONS = [
   { value: 'newsapi',     label: 'NewsAPI.ai',      Icon: Zap },
 ];
 
+const CUSTOM_SOURCE_PREFIX = {
+  twitter: 'X', youtube: 'Youtube', rss: 'RSS', web: 'Web',
+  newsapi: 'NewsAPI', instagram: 'Instagram', eksisozluk: 'Ekşi Sözlük',
+};
+
 /* ── Kaynak Multi-Select Dropdown ──────────────────────────────────── */
 function SourceMultiSelect({ selected, onChange }) {
   const [open, setOpen] = useState(false);
@@ -265,7 +270,7 @@ export default function DashboardPage() {
       console.error(err);
     }
     setLoading(false);
-  }, [page, sortOrder, tagFilter, debouncedQuery, selectedSentiment, selectedPlatforms, isToday, dateFrom, dateTo]);
+  }, [page, sortOrder, tagFilter, debouncedQuery, selectedSentiment, selectedSourceId, selectedPlatforms, isToday, dateFrom, dateTo]);
 
   const fetchCounts = useCallback(async () => {
     try {
@@ -656,7 +661,9 @@ export default function DashboardPage() {
                 <span className="filter-label">📌 Özel Kaynak</span>
                 <select className="filter-select" value={selectedSourceId} onChange={(e) => { setSelectedSourceId(e.target.value); setPage(1); }}>
                   <option value="">Tümü</option>
-                  {customSources.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  {customSources.map(s => (
+                    <option key={s.id} value={s.id}>{CUSTOM_SOURCE_PREFIX[s.type] || s.type}/{s.name}</option>
+                  ))}
                 </select>
               </div>
             </>
