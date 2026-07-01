@@ -15,7 +15,7 @@ cur = conn.cursor()
 cur.execute("""SELECT COUNT(*) FROM information_schema.columns
                WHERE table_schema=DATABASE() AND table_name='tags' AND column_name='context_ops'""")
 if cur.fetchone()[0] == 0:
-    cur.execute("ALTER TABLE tags ADD COLUMN context_ops TEXT NULL AFTER context_keywords")
+    cur.execute("ALTER TABLE tags ADD COLUMN context_ops TEXT NULL")
     conn.commit()
     print("[OK] tags.context_ops kolonu eklendi (eski etiketler context_oper ile geriye uyumlu)")
 else:

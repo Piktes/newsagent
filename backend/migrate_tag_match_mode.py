@@ -15,7 +15,7 @@ cur = conn.cursor()
 cur.execute("""SELECT COUNT(*) FROM information_schema.columns
                WHERE table_schema=DATABASE() AND table_name='tags' AND column_name='match_mode'""")
 if cur.fetchone()[0] == 0:
-    cur.execute("ALTER TABLE tags ADD COLUMN match_mode VARCHAR(10) DEFAULT 'phrase' AFTER must_phrase")
+    cur.execute("ALTER TABLE tags ADD COLUMN match_mode VARCHAR(10) DEFAULT 'phrase'")
     cur.execute("UPDATE tags SET match_mode='phrase' WHERE match_mode IS NULL")
     conn.commit()
     print("[OK] tags.match_mode kolonu eklendi (mevcut etiketler 'phrase')")
