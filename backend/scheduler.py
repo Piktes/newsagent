@@ -501,14 +501,16 @@ def scan_breaking_tags():
 def daily_bulletin_job():
     """Her sabah 09:00: yayınlanmış etiketlerin taze haberlerini çek + her biri için TASLAK bülten oluştur.
     Göndermez — admin/süperadmin önizleyip onaylayınca gönderilir."""
-    from datetime import date as _date
     db: Session = SessionLocal()
     try:
         from models import Bulletin
         import json as _json
         pub_tags = db.query(Tag).filter(Tag.is_published == True).all()  # noqa: E712
         print(f"[Bülten] Günlük iş: {len(pub_tags)} yayınlanmış etiket taranıyor...")
-        today = _date.today()
+        # Sunucunun sistem saat dilimine bagli olmadan hep UTC takvim gunu
+        # (news_items zaman damgalari naive-UTC saklanir; bkz. news.py'deki
+        # ayni fix - tutarlilik icin)
+        today = datetime.now(timezone.utc).date()
         for tag in pub_tags:
             # 1) Taze haber çek
             try:

@@ -205,16 +205,23 @@ def list_news(
             UserNewsState.user_note.ilike(search),
             NewsItem.source_name.ilike(search),
         ))
-    if date_from:
-        df = date_from.replace(tzinfo=None) if date_from.tzinfo else date_from
-        q = q.filter(NewsItem.published_at.isnot(None), NewsItem.published_at >= df)
-    if date_to:
-        dt = date_to.replace(tzinfo=None) if date_to.tzinfo else date_to
-        q = q.filter(NewsItem.published_at.isnot(None), NewsItem.published_at <= dt)
-
-    # Sort order — published_at öncelikli, NULL ise fetched_at'e düşer
-    order_func = asc if sort_order == "asc" else desc
+    # published_at öncelikli, NULL ise fetched_at'e düşer — hem sıralama hem tarih
+    # filtresi aynı sütunu kullanmalı, aksi halde "Bugün Ne Oldu" (bu sütuna göre
+    # filtreler) ile bülten (ayni coalesce'i kullanır) farklı sayı gösterir.
     sort_col = func.coalesce(NewsItem.published_at, NewsItem.fetched_at)
+    if date_from:
+        # Tarayıcı ISO string'i (+03:00 gibi) tz-aware datetime olarak gelir;
+        # tzinfo'yu ATMADAN önce UTC'ye çevirmek gerekir — DB'deki zamanlar
+        # naive-ama-UTC saklanıyor. Önceki kod sadece tzinfo'yu siliyordu, bu da
+        # yerel saat farkı kadar (ör. +3 saat) yanlış pencereye bakılmasına
+        # sebep oluyordu.
+        df = date_from.astimezone(timezone.utc).replace(tzinfo=None) if date_from.tzinfo else date_from
+        q = q.filter(sort_col >= df)
+    if date_to:
+        dt = date_to.astimezone(timezone.utc).replace(tzinfo=None) if date_to.tzinfo else date_to
+        q = q.filter(sort_col <= dt)
+
+    order_func = asc if sort_order == "asc" else desc
     items = q.order_by(order_func(sort_col)).offset(
         (page - 1) * page_size
     ).limit(page_size).all()
@@ -282,9 +289,12 @@ def news_count(
     if tag_id:
         base = base.filter(NewsItem.tag_id == tag_id)
     if date_from:
-        base = base.filter(NewsItem.published_at.isnot(None), NewsItem.published_at >= datetime.fromisoformat(date_from.replace("Z", "+00:00")).replace(tzinfo=None))
+        # tzinfo'yu atmadan once UTC'ye cevir (bkz. list_news'teki ayni fix)
+        df = datetime.fromisoformat(date_from.replace("Z", "+00:00")).astimezone(timezone.utc).replace(tzinfo=None)
+        base = base.filter(NewsItem.published_at.isnot(None), NewsItem.published_at >= df)
     if date_to:
-        base = base.filter(NewsItem.published_at.isnot(None), NewsItem.published_at <= datetime.fromisoformat(date_to.replace("Z", "+00:00")).replace(tzinfo=None))
+        dt = datetime.fromisoformat(date_to.replace("Z", "+00:00")).astimezone(timezone.utc).replace(tzinfo=None)
+        base = base.filter(NewsItem.published_at.isnot(None), NewsItem.published_at <= dt)
     if source_types:
         base = base.filter(NewsItem.source_type.in_(source_types))
 
@@ -292,8 +302,9 @@ def news_count(
     unread = base.filter(func.coalesce(UserNewsState.is_read, False) == False).count()
     favorites = base.filter(func.coalesce(UserNewsState.is_favorite, False) == True).count()
 
-    # Today's start (UTC)
-    today_start = datetime.combine(date.today(), dtime.min)
+    # Today's start (UTC) — sunucunun sistem saat dilimine bakılmaksızın her zaman
+    # UTC takvim gününü kullanır (NewsItem zaman damgaları naive-UTC saklanır)
+    today_start = datetime.combine(datetime.now(timezone.utc).date(), dtime.min)
 
     # Per-source-type breakdown
     source_counts = {}
@@ -656,9 +667,11 @@ def export_pdf(
     if effective_tag_ids:
         q = q.filter(NewsItem.tag_id.in_(effective_tag_ids))
     if date_from:
-        q = q.filter(NewsItem.published_at >= date_from)
+        df = date_from.astimezone(timezone.utc).replace(tzinfo=None) if date_from.tzinfo else date_from
+        q = q.filter(NewsItem.published_at >= df)
     if date_to:
-        q = q.filter(NewsItem.published_at <= date_to)
+        dt = date_to.astimezone(timezone.utc).replace(tzinfo=None) if date_to.tzinfo else date_to
+        q = q.filter(NewsItem.published_at <= dt)
     items = q.order_by(desc(NewsItem.published_at)).all()
 
     # Build tag name display
