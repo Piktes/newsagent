@@ -407,9 +407,10 @@ def _scan_with_engine(db: Session, engine, tag: Tag, user_id: int, source: Optio
 def scan_all_users():
     """Main scheduled job: Scan all tags for all users."""
     import notification_bus
+    from models import User
     db: Session = SessionLocal()
     try:
-        tags = db.query(Tag).all()
+        tags = db.query(Tag).join(User, Tag.user_id == User.id).filter(User.is_active == True).all()  # noqa: E712
         # Group tags by user
         from collections import defaultdict
         user_tags: dict = defaultdict(list)
@@ -454,7 +455,8 @@ def scan_breaking_tags():
     try:
         from models import User
         now = datetime.now(timezone.utc).replace(tzinfo=None)
-        tags = db.query(Tag).filter(Tag.is_breaking == True).all()
+        tags = (db.query(Tag).join(User, Tag.user_id == User.id)
+                  .filter(Tag.is_breaking == True, User.is_active == True).all())  # noqa: E712
         if not tags:
             return
         for tag in tags:
