@@ -196,10 +196,14 @@ def delete_ticket(
     ticket = db.query(FeedbackTicket).filter(FeedbackTicket.id == ticket_id).first()
     if not ticket:
         raise HTTPException(status_code=404, detail="Talep bulunamadı")
-    # Clean up uploaded files
+    # Dosya temizleme best-effort: izin/erisim sorunu talep kaydinin silinmesini
+    # engellemesin (asil amac veritabani kaydinin silinmesi).
     for fname in _parse_attachments(ticket):
         fpath = os.path.join(UPLOAD_DIR, os.path.basename(fname))
-        if os.path.exists(fpath):
-            os.remove(fpath)
+        try:
+            if os.path.exists(fpath):
+                os.remove(fpath)
+        except OSError as e:
+            print(f"[Feedback] Ek dosya silinemedi ({fpath}): {e}")
     db.delete(ticket)
     db.commit()

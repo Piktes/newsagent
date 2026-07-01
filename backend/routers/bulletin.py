@@ -86,6 +86,20 @@ def _get_bulletin(db, bid) -> Bulletin:
     return b
 
 
+@router.delete("/{bid}", status_code=204)
+def delete_bulletin(bid: int, db: Session = Depends(get_db), admin: User = Depends(require_admin)):
+    """Taslak/onaylanmış/başarısız bir bülteni siler. Not: bu, etiketleri veya
+    o etiketlere ait haberleri hiç etkilemez — bülten sadece bir anlık görünüm
+    kaydıdır (tag_ids JSON referansı), etiket silinse bile diğer bültenler
+    kalıcı kalır. Gönderilmiş (status=sent) bültenler, gerçek teslimat geçmişi
+    oluşturduğu için silinemez — arşivde tutulur."""
+    b = _get_bulletin(db, bid)
+    if b.status == "sent":
+        raise HTTPException(status_code=400, detail="Gönderilmiş bültenler silinemez (teslimat geçmişi arşivlenir)")
+    db.delete(b)  # BulletinDelivery satırları ON DELETE CASCADE ile otomatik silinir
+    db.commit()
+
+
 @router.get("/{bid}", response_model=BulletinResponse)
 def get_bulletin(bid: int, db: Session = Depends(get_db), admin: User = Depends(require_admin)):
     return _resp(db, _get_bulletin(db, bid))

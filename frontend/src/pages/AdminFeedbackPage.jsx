@@ -56,7 +56,9 @@ export default function AdminFeedbackPage() {
     try {
       await feedbackApi.deleteTicket(ticketId);
       setTickets(ts => ts.filter(t => t.id !== ticketId));
-    } catch {}
+    } catch (e) {
+      alert(e.response?.data?.detail || 'Talep silinemedi');
+    }
   };
 
   const pendingCount = tickets.filter(t => t.status === 'pending').length;

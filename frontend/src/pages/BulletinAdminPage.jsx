@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { BookOpen, RefreshCw, Send, CheckCircle, EyeOff, RotateCcw, Plus, Download, Undo2, FileText } from 'lucide-react';
+import { BookOpen, RefreshCw, Send, CheckCircle, EyeOff, RotateCcw, Plus, Download, Undo2, FileText, Trash2 } from 'lucide-react';
 import { bulletinApi, tagsApi } from '../services/api';
 
 const STATUS = {
@@ -106,6 +106,17 @@ export default function BulletinAdminPage() {
     catch (e) { alert('PDF alınamadı'); }
   };
 
+  const deleteBulletin = async (b) => {
+    if (!confirm('Bu bülteni silmek istiyor musunuz? (Etiketler ve haberler etkilenmez)')) return;
+    setBusy(true);
+    try {
+      await bulletinApi.delete(b.id);
+      if (selected?.id === b.id) { setSelected(null); setItems([]); }
+      await loadBulletins();
+    } catch (e) { alert(e.response?.data?.detail || 'Silinemedi'); }
+    setBusy(false);
+  };
+
   return (
     <div className="dashboard-page admin-page">
       <div className="page-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -153,7 +164,18 @@ export default function BulletinAdminPage() {
                 background: active ? 'rgba(0,112,243,0.06)' : 'var(--bg-card)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontWeight: 600, fontSize: '0.85rem' }}>{b.title || 'Bülten'}</span>
-                  <span style={{ fontSize: '0.68rem', fontWeight: 700, color: st.color }}>{st.label}</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <span style={{ fontSize: '0.68rem', fontWeight: 700, color: st.color }}>{st.label}</span>
+                    {b.status !== 'sent' && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); deleteBulletin(b); }}
+                        title="Bülteni sil"
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 0, display: 'flex' }}
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    )}
+                  </span>
                 </div>
                 <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 2 }}>
                   {new Date(b.date).toLocaleDateString('tr-TR')} · {b.item_count ?? '—'} haber

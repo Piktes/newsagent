@@ -170,6 +170,7 @@ export const bulletinApi = {
   get: (id) => api.get(`/bulletin/${id}`),
   items: (id) => api.get(`/bulletin/${id}/items`),
   create: (data) => api.post('/bulletin/create', data),
+  delete: (id) => api.delete(`/bulletin/${id}`),
   exclude: (id, news_id) => api.post(`/bulletin/${id}/exclude`, { news_id }),
   include: (id, news_id) => api.post(`/bulletin/${id}/include`, { news_id }),
   approve: (id) => api.post(`/bulletin/${id}/approve`),
