@@ -149,6 +149,14 @@ def list_news(
             NewsItem.is_hidden == (True if show_hidden else False)
         )
 
+    # Per-user okundu/favori/not durumu artık UserNewsState'te — NewsItem'ın
+    # kendi is_read/is_favorite/user_note kolonları toggle endpoint'lerince
+    # artık güncellenmiyor, bu yüzden filtre/aramada state tablosuna bakılır.
+    q = q.outerjoin(
+        UserNewsState,
+        and_(UserNewsState.news_item_id == NewsItem.id, UserNewsState.user_id == current_user.id)
+    )
+
     if breaking_only:
         if current_user.role == UserRole.USER:
             breaking_tag_ids = [
@@ -184,9 +192,9 @@ def list_news(
     if effective_types:
         q = q.filter(NewsItem.source_type.in_(effective_types))
     if is_favorite is not None:
-        q = q.filter(NewsItem.is_favorite == is_favorite)
+        q = q.filter(func.coalesce(UserNewsState.is_favorite, False) == is_favorite)
     if is_read is not None:
-        q = q.filter(NewsItem.is_read == is_read)
+        q = q.filter(func.coalesce(UserNewsState.is_read, False) == is_read)
     if sentiment:
         q = q.filter(NewsItem.sentiment == sentiment)
     if query:
@@ -194,7 +202,7 @@ def list_news(
         q = q.filter(or_(
             NewsItem.title.ilike(search),
             NewsItem.summary.ilike(search),
-            NewsItem.user_note.ilike(search),
+            UserNewsState.user_note.ilike(search),
             NewsItem.source_name.ilike(search),
         ))
     if date_from:
@@ -211,10 +219,21 @@ def list_news(
         (page - 1) * page_size
     ).limit(page_size).all()
 
+    # Bu kullanıcının okundu/favori/not durumu (UserNewsState) tek sorguda
+    states = db.query(UserNewsState).filter(
+        UserNewsState.user_id == current_user.id,
+        UserNewsState.news_item_id.in_([i.id for i in items])
+    ).all() if items else []
+    state_map = {s.news_item_id: s for s in states}
+
     # Enrich with tag info
     result = []
     for item in items:
         resp = NewsItemResponse.model_validate(item)
+        state = state_map.get(item.id)
+        resp.is_read = state.is_read if state else False
+        resp.is_favorite = state.is_favorite if state else False
+        resp.user_note = state.user_note if state else None
         tag = db.query(Tag).filter(Tag.id == item.tag_id).first()
         if tag:
             resp.tag_name = tag.name
@@ -235,8 +254,12 @@ def news_count(
     current_user: User = Depends(get_current_user)
 ):
     from datetime import date, time as dtime
+    from sqlalchemy import and_
 
-    base = db.query(NewsItem).filter(
+    base = db.query(NewsItem).outerjoin(
+        UserNewsState,
+        and_(UserNewsState.news_item_id == NewsItem.id, UserNewsState.user_id == current_user.id)
+    ).filter(
         NewsItem.user_id == current_user.id,
         NewsItem.is_hidden == False
     )
@@ -266,8 +289,8 @@ def news_count(
         base = base.filter(NewsItem.source_type.in_(source_types))
 
     total = base.count()
-    unread = base.filter(NewsItem.is_read == False).count()
-    favorites = base.filter(NewsItem.is_favorite == True).count()
+    unread = base.filter(func.coalesce(UserNewsState.is_read, False) == False).count()
+    favorites = base.filter(func.coalesce(UserNewsState.is_favorite, False) == True).count()
 
     # Today's start (UTC)
     today_start = datetime.combine(date.today(), dtime.min)
@@ -286,7 +309,10 @@ def news_count(
 
     # Total today
     total_today = base.filter(NewsItem.published_at.isnot(None), NewsItem.published_at >= today_start).count()
-    today_unread = base.filter(NewsItem.published_at.isnot(None), NewsItem.published_at >= today_start, NewsItem.is_read == False).count()
+    today_unread = base.filter(
+        NewsItem.published_at.isnot(None), NewsItem.published_at >= today_start,
+        func.coalesce(UserNewsState.is_read, False) == False
+    ).count()
 
     # Sentiment distribution
     sentiment_positive = base.filter(NewsItem.sentiment == "positive").count()
@@ -340,9 +366,14 @@ def bulk_mark_read(
     current_user: User = Depends(get_current_user)
 ):
     """Mark all (optionally filtered) news as read."""
-    q = db.query(NewsItem).filter(
+    from sqlalchemy import and_
+
+    q = db.query(NewsItem.id).outerjoin(
+        UserNewsState,
+        and_(UserNewsState.news_item_id == NewsItem.id, UserNewsState.user_id == current_user.id)
+    ).filter(
         NewsItem.user_id == current_user.id,
-        NewsItem.is_read == False,
+        func.coalesce(UserNewsState.is_read, False) == False,
         NewsItem.is_hidden == False,
     )
     if breaking_only:
@@ -354,9 +385,24 @@ def bulk_mark_read(
         q = q.filter(NewsItem.tag_id.in_(breaking_ids))
     if tag_id:
         q = q.filter(NewsItem.tag_id == tag_id)
-    count = q.update({NewsItem.is_read: True}, synchronize_session=False)
+
+    news_ids = [r[0] for r in q.all()]
+    existing = db.query(UserNewsState).filter(
+        UserNewsState.user_id == current_user.id,
+        UserNewsState.news_item_id.in_(news_ids)
+    ).all() if news_ids else []
+    existing_map = {s.news_item_id: s for s in existing}
+    now = datetime.now(timezone.utc)
+    for nid in news_ids:
+        state = existing_map.get(nid)
+        if not state:
+            state = UserNewsState(user_id=current_user.id, news_item_id=nid, is_read=True, updated_at=now)
+            db.add(state)
+        else:
+            state.is_read = True
+            state.updated_at = now
     db.commit()
-    return {"marked_read": count}
+    return {"marked_read": len(news_ids)}
 
 
 def _get_or_create_state(db: Session, user_id: int, news_item_id: int) -> UserNewsState:
@@ -515,12 +561,19 @@ def export_csv(
 
     items = q.order_by(desc(NewsItem.published_at)).all()
 
+    states = db.query(UserNewsState).filter(
+        UserNewsState.user_id == current_user.id,
+        UserNewsState.news_item_id.in_([i.id for i in items])
+    ).all() if items else []
+    state_map = {s.news_item_id: s for s in states}
+
     output = io.StringIO()
     writer = csv.writer(output)
     writer.writerow(["Baslik", "Ozet", "URL", "Kaynak URL", "Kaynak", "Tarih", "Etiket", "Not", "Okundu", "Favori"])
 
     for item in items:
         tag = db.query(Tag).filter(Tag.id == item.tag_id).first()
+        state = state_map.get(item.id)
         writer.writerow([
             item.title,
             item.summary or "",
@@ -529,9 +582,9 @@ def export_csv(
             item.source_name or "",
             item.published_at.isoformat() if item.published_at else "",
             tag.name if tag else "",
-            item.user_note or "",
-            "Evet" if item.is_read else "Hayir",
-            "Evet" if item.is_favorite else "Hayir",
+            (state.user_note if state else "") or "",
+            "Evet" if (state and state.is_read) else "Hayir",
+            "Evet" if (state and state.is_favorite) else "Hayir",
         ])
 
     output.seek(0)

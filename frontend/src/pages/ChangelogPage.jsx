@@ -4,12 +4,13 @@ import { History, RefreshCw } from 'lucide-react';
 
 export default function ChangelogPage() {
   const [commits, setCommits] = useState([]);
+  const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
 
   const refresh = () => {
     setLoading(true);
     adminApi.getVersion()
-      .then(r => setCommits(r.data.commits || []))
+      .then(r => { setCommits(r.data.commits || []); setError(r.data.error || null); })
       .catch(console.error)
       .finally(() => setLoading(false));
   };
@@ -36,6 +37,11 @@ export default function ChangelogPage() {
       ) : commits.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
           Sunucuda git geçmişi okunamadı.
+          {error && (
+            <div style={{ marginTop: '0.75rem' }}>
+              <code style={{ fontSize: '0.75rem', color: 'var(--danger)', whiteSpace: 'pre-wrap' }}>{error}</code>
+            </div>
+          )}
         </div>
       ) : (
         <>

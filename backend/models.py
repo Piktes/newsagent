@@ -174,7 +174,7 @@ class NewsItem(Base):
     retweet_count = Column(Integer, nullable=True)
     like_count = Column(Integer, nullable=True)
     source_id = Column(Integer, ForeignKey("news_sources.id", ondelete="SET NULL"), nullable=True)  # özel kaynaktan geldiyse
-    tag_id = Column(Integer, ForeignKey("tags.id"), nullable=False)
+    tag_id = Column(Integer, ForeignKey("tags.id", ondelete="CASCADE"), nullable=False)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
 
     # Relationships
@@ -191,7 +191,7 @@ class NotificationPref(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    tag_id = Column(Integer, ForeignKey("tags.id"), nullable=False)
+    tag_id = Column(Integer, ForeignKey("tags.id", ondelete="CASCADE"), nullable=False)
     method = Column(SqlEnum(NotificationMethod), default=NotificationMethod.BROWSER)
     enabled = Column(Boolean, default=True)
 
@@ -276,8 +276,8 @@ class FavoriteListItem(Base):
     __tablename__ = "favorite_list_items"
 
     id = Column(Integer, primary_key=True, index=True)
-    list_id = Column(Integer, ForeignKey("favorite_lists.id"), nullable=False)
-    news_id = Column(Integer, ForeignKey("news_items.id"), nullable=False)
+    list_id = Column(Integer, ForeignKey("favorite_lists.id", ondelete="CASCADE"), nullable=False)
+    news_id = Column(Integer, ForeignKey("news_items.id", ondelete="CASCADE"), nullable=False)
     added_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     fav_list = relationship("FavoriteList", back_populates="items")
