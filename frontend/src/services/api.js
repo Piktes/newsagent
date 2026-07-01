@@ -160,6 +160,7 @@ export const adminApi = {
   clearErrorLogs: () => api.delete('/admin/error-logs'),
   pauseBreakingTag: (tagId) => api.patch(`/admin/breaking-tags/${tagId}/pause`),
   unpauseBreakingTag: (tagId) => api.patch(`/admin/breaking-tags/${tagId}/unpause`),
+  getVersion: () => api.get('/admin/version'),
 };
 
 // ─── Bülten ───────────────────────────────────────────

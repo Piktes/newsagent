@@ -25,6 +25,7 @@ import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
 import BulletinAdminPage from './pages/BulletinAdminPage';
 import BulletinUserPage from './pages/BulletinUserPage';
+import ChangelogPage from './pages/ChangelogPage';
 
 function ProtectedRoute({ children, adminOnly = false, superAdminOnly = false }) {
   const { user, loading, isAdmin, isSuperAdmin } = useAuth();
@@ -128,6 +129,7 @@ function AppLayout({ isDarkTheme, toggleTheme }) {
           <Route path="/admin/quota"         element={<ProtectedRoute superAdminOnly><QuotaPage /></ProtectedRoute>} />
           <Route path="/admin/feedback"      element={<ProtectedRoute superAdminOnly><AdminFeedbackPage /></ProtectedRoute>} />
           <Route path="/admin/error-logs"    element={<ProtectedRoute adminOnly><AdminErrorLogsPage /></ProtectedRoute>} />
+          <Route path="/admin/changelog"     element={<ProtectedRoute adminOnly><ChangelogPage /></ProtectedRoute>} />
           <Route path="/admin/global"        element={<ProtectedRoute adminOnly><GlobalSearchPage /></ProtectedRoute>} />
         </Routes>
         <footer style={{

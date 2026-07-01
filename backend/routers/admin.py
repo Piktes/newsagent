@@ -8,6 +8,8 @@ from sqlalchemy.orm import Session
 from sqlalchemy import desc, func
 from typing import List
 from datetime import datetime, timezone, timedelta
+import subprocess
+from pathlib import Path
 
 from database import get_db
 from models import (
@@ -21,6 +23,26 @@ from schemas import (
 from auth import require_admin, require_super_admin
 
 router = APIRouter(prefix="/api/admin", tags=["Admin"])
+
+REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+
+
+@router.get("/version")
+def get_version(admin: User = Depends(require_admin)):
+    """Sunucuda calisan kodun son commit'lerini gosterir (deploy dogrulama icin)."""
+    try:
+        log = subprocess.run(
+            ["git", "log", "-15", "--date=iso-strict", "--format=%h|%ad|%s"],
+            cwd=str(REPO_ROOT), capture_output=True, text=True, timeout=5, check=True,
+        ).stdout.strip()
+        commits = []
+        for line in log.splitlines():
+            parts = line.split("|", 2)
+            if len(parts) == 3:
+                commits.append({"hash": parts[0], "date": parts[1], "message": parts[2]})
+    except Exception as e:
+        commits = []
+    return {"commits": commits}
 
 
 @router.get("/stats", response_model=DashboardStats)

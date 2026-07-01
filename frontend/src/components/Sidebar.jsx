@@ -5,7 +5,7 @@ import { tagsApi, newsApi } from '../services/api';
 import {
   Newspaper, Calendar, Star, Tags, Bell, EyeOff,
   BarChart, Users, FileText, Zap, LogOut, Sun, Moon, Gauge, Radio,
-  MessageSquare, AlertTriangle, Wrench, Globe, Mail, BookOpen
+  MessageSquare, AlertTriangle, Wrench, Globe, Mail, BookOpen, History
 } from 'lucide-react';
 
 const NAV_ITEMS = [
@@ -30,6 +30,7 @@ const ADMIN_ITEMS = [
   { path: '/admin/quota',       icon: <Gauge size={18} />,       label: 'API Kotası',             superAdminOnly: true },
   { path: '/admin/feedback',    icon: <Wrench size={18} />,      label: 'Sistem İyileştirmeleri', superAdminOnly: true },
   { path: '/admin/error-logs',  icon: <AlertTriangle size={18} />, label: 'Hata Logları' },
+  { path: '/admin/changelog',   icon: <History size={18} />,     label: 'Son Değişiklikler' },
 ];
 
 export default function Sidebar({ collapsed, onToggle, isDarkTheme, toggleTheme }) {
