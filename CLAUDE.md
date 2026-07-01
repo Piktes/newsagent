@@ -133,11 +133,18 @@ User ──< ApiQuota    (per SourceType, resets daily)
 Migration: `python migrate_roles_departments.py`
 
 **Test kullanıcıları** (migrate_roles_departments.py ile oluşturulur):
-| Kullanıcı | Rol | Şifre |
+> Login formu e-posta alanıdır — giriş için e-posta kullanılır, username değil.
+
+| E-posta | Rol | Şifre |
 |---|---|---|
-| `test_superadmin` | super_admin | SuperAdmin123! |
-| `test_admin` | admin | Admin123! |
-| `test_user` | user | User123! |
+| `test_superadmin@haberajani.local` | super_admin | SuperAdmin123! |
+| `test_admin@haberajani.local` | admin | Admin123! |
+| `test_user@haberajani.local` | user | User123! |
+
+**Seed super admin** (uygulama ilk başladığında otomatik):
+| E-posta | Şifre |
+|---|---|
+| `admin@haberajani.local` | `admin123` |
 
 ## Yayınlama Mekanizması
 
