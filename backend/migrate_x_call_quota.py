@@ -1,12 +1,14 @@
 """Migration: x_call_quota (elle yonetilen X cagri kotasi). Idempotent."""
-import os, re, sys
+import os, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from dotenv import load_dotenv
 load_dotenv()
 import pymysql
+from sqlalchemy.engine.url import make_url
 
 url = os.getenv("DATABASE_URL", "mysql+pymysql://root:1234@localhost/haberajani?charset=utf8mb4")
-u, p, h, d = re.match(r"mysql\+pymysql://([^:]+):([^@]+)@([^/]+)/([^?]+)", url).groups()
+_u = make_url(url)
+u, p, h, d = _u.username, _u.password, _u.host, _u.database
 conn = pymysql.connect(host=h, user=u, password=p, database=d, charset="utf8mb4", autocommit=False)
 cur = conn.cursor()
 

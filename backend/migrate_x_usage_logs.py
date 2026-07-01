@@ -2,17 +2,16 @@
 Migration: x_usage_logs tablosu (X/Twitter API kullanimini kullanici bazinda kaydeder).
 Kullanici-bazinda kota pasta grafigi icin gereklidir. Idempotent.
 """
-import os, re, sys
+import os, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from dotenv import load_dotenv
 load_dotenv()
 import pymysql
+from sqlalchemy.engine.url import make_url
 
 url = os.getenv("DATABASE_URL", "mysql+pymysql://root:1234@localhost/haberajani?charset=utf8mb4")
-m = re.match(r"mysql\+pymysql://([^:]+):([^@]+)@([^/]+)/([^?]+)", url)
-if not m:
-    print("DATABASE_URL parse edilemedi."); sys.exit(1)
-db_user, db_pass, db_host, db_name = m.groups()
+u = make_url(url)
+db_user, db_pass, db_host, db_name = u.username, u.password, u.host, u.database
 print(f"[DB] {db_user}@{db_host}/{db_name}")
 
 conn = pymysql.connect(host=db_host, user=db_user, password=db_pass,

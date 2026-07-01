@@ -18,17 +18,15 @@ load_dotenv()
 
 import pymysql
 import bcrypt
+from sqlalchemy.engine.url import make_url
 
 DATABASE_URL = os.getenv("DATABASE_URL", "mysql+pymysql://root:1234@localhost/haberajani?charset=utf8mb4")
 
-# Parse bağlantı bilgilerini DATABASE_URL'den çıkar
-import re
-m = re.match(r"mysql\+pymysql://([^:]+):([^@]+)@([^/]+)/([^?]+)", DATABASE_URL)
-if not m:
-    print("DATABASE_URL parse edilemedi.")
-    sys.exit(1)
-
-db_user, db_pass, db_host, db_name = m.group(1), m.group(2), m.group(3), m.group(4)
+# Parse bağlantı bilgilerini DATABASE_URL'den çıkar (make_url özel karakterleri
+# (@, !, $ vb.) doğru percent-decode eder; elle regex ile parse etmek şifre
+# içinde "@" varsa şifreyi yanlış ayırır ve "Access denied" hatası verir)
+_parsed = make_url(DATABASE_URL)
+db_user, db_pass, db_host, db_name = _parsed.username, _parsed.password, _parsed.host, _parsed.database
 print(f"[DB] {db_user}@{db_host}/{db_name}")
 
 conn = pymysql.connect(
