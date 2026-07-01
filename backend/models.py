@@ -186,6 +186,24 @@ class NewsItem(Base):
         return self.custom_source.name if self.custom_source else None
 
 
+class TagNewsMatch(Base):
+    """Etiket <-> paylaşımlı haber eşleşmesi (M:N). Aşama A/B: NewsItem artık
+    tek bir etikete kilitli değil — aynı haberi eşleştiren birden fazla etiket
+    (farklı kullanıcılara ait olsa bile) bu tablo üzerinden ilişkilendirilir.
+    Bir etiket silindiğinde sadece buradaki satırlar silinir, NewsItem kalır."""
+    __tablename__ = "tag_news_matches"
+    __table_args__ = (UniqueConstraint('tag_id', 'news_item_id', name='uq_tag_news_match'),)
+
+    id = Column(Integer, primary_key=True, index=True)
+    tag_id = Column(Integer, ForeignKey("tags.id", ondelete="CASCADE"), nullable=False)
+    news_item_id = Column(Integer, ForeignKey("news_items.id", ondelete="CASCADE"), nullable=False)
+    matched_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    source_type = Column(SqlEnum(SourceType), nullable=True)  # eslesme anindaki kaynak turu (bilgi amacli)
+
+    tag = relationship("Tag")
+    news_item = relationship("NewsItem")
+
+
 class NotificationPref(Base):
     __tablename__ = "notification_prefs"
 

@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 from database import SessionLocal
 from models import (
     Tag, NewsSource, NewsItem, ScanLog, ApiQuota,
-    SourceType, ScanStatus, Language
+    SourceType, ScanStatus, Language, TagNewsMatch
 )
 from engines.rss_engine import RssEngine
 from engines.twitter_engine import TwitterEngine
@@ -102,6 +102,33 @@ def eval_context(combined_text, keywords, ops, fallback='and'):
     if not groups:
         return True
     return any(all(normalize_turkish(kw) in combined_text for kw in g) for g in groups)
+
+
+def is_relevant(tag, title: str, summary: str) -> bool:
+    """Bir haberin etiketin kriterlerine (must_phrase/match_mode + context) uyup
+    uymadigini degerlendirir. Canli tarama (_scan_with_engine) ve arsiv backfill'i
+    (tag_equivalence.py) ayni mantigi kullansin diye buraya cikarildi."""
+    import json as _json
+    from engines.newsapi_engine import normalize_query as _nq
+
+    combined_text = normalize_turkish(title or "") + " " + normalize_turkish(summary or "")
+
+    mm = getattr(tag, 'match_mode', 'phrase') or 'phrase'
+    must = normalize_turkish(_nq(tag.must_phrase or tag.name))
+    if mm == 'all_words':
+        must_ok = all(w in combined_text for w in must.split())
+    else:
+        must_ok = must in combined_text
+
+    ctx_kw = _json.loads(tag.context_keywords or "[]") if tag.context_keywords else []
+    ctx_ops = _json.loads(tag.context_ops or "[]") if getattr(tag, 'context_ops', None) else []
+    ctx_oper = getattr(tag, 'context_oper', 'or') or 'or'
+    if not ctx_kw or ctx_oper == 'off':
+        context_ok = True
+    else:
+        context_ok = eval_context(combined_text, ctx_kw, ctx_ops, fallback=ctx_oper)
+
+    return must_ok and context_ok
 
 
 def scan_for_user_tag(user_id: int, tag_id: int, source_id: Optional[int] = None, days_back: int = 30, source_types: Optional[list] = None) -> int:
@@ -266,29 +293,7 @@ def _scan_with_engine(db: Session, engine, tag: Tag, user_id: int, source: Optio
                 print(f"[Scheduler] {src_label}: {len(results)} sonuç döndü")
                 for r in results:
                     # Relevance check — tüm engine'lere (ER dahil) uygulanır
-                    import json as _json
-                    from engines.newsapi_engine import normalize_query as _nq
-                    combined_text = normalize_turkish(r.title or "") + " " + normalize_turkish(r.summary or "")
-
-                    # Eşleşme tipi: phrase → tam ifade (yan yana) | all_words → tüm kelimeler (sıra önemsiz)
-                    _mm = getattr(tag, 'match_mode', 'phrase') or 'phrase'
-                    must = normalize_turkish(_nq(tag.must_phrase or tag.name))
-                    if _mm == 'all_words':
-                        must_ok = all(w in combined_text for w in must.split())
-                    else:
-                        must_ok = must in combined_text
-
-                    # Bağlam: per-kelime VE/VEYA bağlaçlarına göre boole (OR(AND-grupları)).
-                    # Eski etiketler (context_ops yok) context_oper ile geriye uyumlu değerlendirilir.
-                    ctx_kw = _json.loads(tag.context_keywords or "[]") if tag.context_keywords else []
-                    ctx_ops = _json.loads(tag.context_ops or "[]") if getattr(tag, 'context_ops', None) else []
-                    ctx_oper = getattr(tag, 'context_oper', 'or') or 'or'
-                    if not ctx_kw or ctx_oper == 'off':
-                        context_ok = True
-                    else:
-                        context_ok = eval_context(combined_text, ctx_kw, ctx_ops, fallback=ctx_oper)
-
-                    if not (must_ok and context_ok):
+                    if not is_relevant(tag, r.title, r.summary):
                         continue
 
                     url_h = _url_hash(r.url)
@@ -347,6 +352,13 @@ def _scan_with_engine(db: Session, engine, tag: Tag, user_id: int, source: Optio
                         db.add(news_item)
                         db.commit()
                         items_found += 1
+                        # Asama A (paylasimli arsiv): NewsItem hala per-tag olusturuluyor
+                        # ama ayni haberi hangi etiketin eslestirdigini de kaydediyoruz -
+                        # ileride (Asama B) denk etiketler bu tablodan anlik geriye donuk
+                        # eslesme alabilecek.
+                        db.add(TagNewsMatch(tag_id=tag.id, news_item_id=news_item.id,
+                                             matched_at=datetime.now(timezone.utc), source_type=s_type))
+                        db.commit()
                         # Update API quota
                         if source and source.api_key:
                             quota = db.query(ApiQuota).filter(

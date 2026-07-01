@@ -14,6 +14,7 @@ from models import Tag, User, UserRole
 from schemas import TagCreate, TagUpdate, TagResponse
 from auth import get_current_user, require_admin, require_super_admin
 from scheduler import scan_for_user_tag
+from tag_equivalence import backfill_tag_from_archive
 
 router = APIRouter(prefix="/api/tags", tags=["Tags"])
 
@@ -66,6 +67,13 @@ def create_tag(
     db.commit()
     db.refresh(tag)
 
+    # Ayni arama kriterine sahip baska bir etiket varsa, arsivde zaten
+    # eslestirdigi haberleri bu yeni etikete de aninda bagla (sifirdan
+    # taramaya gerek kalmadan gecmis sonuclar hemen gorunur).
+    linked = backfill_tag_from_archive(db, tag)
+    if linked:
+        print(f"[Tags] '{tag.name}' arsivden {linked} haber ile eslestirildi (denk etiket)")
+
     background_tasks.add_task(scan_for_user_tag, current_user.id, tag.id, None, 30)
     return tag
 
@@ -83,6 +91,11 @@ def update_tag(
         tag = db.query(Tag).filter(Tag.id == tag_id, Tag.user_id == current_user.id).first()
     if not tag:
         raise HTTPException(status_code=404, detail="Etiket bulunamadı")
+
+    criteria_changed = any(v is not None for v in (
+        data.must_phrase, data.match_mode, data.context_keywords,
+        data.context_ops, data.context_oper,
+    ))
 
     if data.name is not None:
         tag.name = data.name
@@ -107,6 +120,12 @@ def update_tag(
 
     db.commit()
     db.refresh(tag)
+
+    if criteria_changed:
+        linked = backfill_tag_from_archive(db, tag)
+        if linked:
+            print(f"[Tags] '{tag.name}' arsivden {linked} haber ile eslestirildi (kriter guncellendi)")
+
     return tag
 
 
