@@ -158,6 +158,8 @@ export const adminApi = {
   getOverview: () => api.get('/admin/overview'),
   getErrorLogs: (level, limit = 100) => api.get('/admin/error-logs', { params: { level, limit } }),
   clearErrorLogs: () => api.delete('/admin/error-logs'),
+  pauseBreakingTag: (tagId) => api.patch(`/admin/breaking-tags/${tagId}/pause`),
+  unpauseBreakingTag: (tagId) => api.patch(`/admin/breaking-tags/${tagId}/unpause`),
 };
 
 // ─── Bülten ───────────────────────────────────────────

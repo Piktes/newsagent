@@ -456,7 +456,8 @@ def scan_breaking_tags():
         from models import User
         now = datetime.now(timezone.utc).replace(tzinfo=None)
         tags = (db.query(Tag).join(User, Tag.user_id == User.id)
-                  .filter(Tag.is_breaking == True, User.is_active == True).all())  # noqa: E712
+                  .filter(Tag.is_breaking == True, Tag.breaking_paused == False,
+                          User.is_active == True).all())  # noqa: E712
         if not tags:
             return
         for tag in tags:

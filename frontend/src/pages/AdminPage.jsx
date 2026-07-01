@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { adminApi } from '../services/api';
-import { BarChart2, Tags, Radio, Zap, Clock, User, RefreshCw } from 'lucide-react';
+import { useAuth } from '../hooks/useAuth';
+import { BarChart2, Tags, Radio, Zap, Clock, User, RefreshCw, Pause, Play } from 'lucide-react';
 
 const SOURCE_TYPE_LABELS = {
   rss: 'RSS', twitter: 'Twitter/X', youtube: 'YouTube',
@@ -26,17 +27,26 @@ function Section({ icon, title, children }) {
 }
 
 export default function AdminPage() {
+  const { isSuperAdmin } = useAuth();
   const [stats, setStats]       = useState(null);
   const [overview, setOverview] = useState(null);
   const [loading, setLoading]   = useState(true);
   const [activeTab, setActiveTab] = useState('tags'); // tags | sources | automations
 
-  useEffect(() => {
-    Promise.all([adminApi.getStats(), adminApi.getOverview()])
+  const refresh = () => {
+    setLoading(true);
+    return Promise.all([adminApi.getStats(), adminApi.getOverview()])
       .then(([s, o]) => { setStats(s.data); setOverview(o.data); })
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, []);
+  };
+
+  useEffect(() => { refresh(); }, []);
+
+  const togglePause = (tagId, paused) => {
+    const call = paused ? adminApi.unpauseBreakingTag(tagId) : adminApi.pauseBreakingTag(tagId);
+    call.then(refresh).catch(console.error);
+  };
 
   if (loading) return <div className="loading-state"><div className="spinner large" /></div>;
 
@@ -59,7 +69,7 @@ export default function AdminPage() {
         <button
           className="btn btn-outline"
           style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.825rem' }}
-          onClick={() => { setLoading(true); Promise.all([adminApi.getStats(), adminApi.getOverview()]).then(([s,o])=>{setStats(s.data);setOverview(o.data);}).finally(()=>setLoading(false)); }}
+          onClick={refresh}
         >
           <RefreshCw size={13} /> Yenile
         </button>
@@ -256,6 +266,9 @@ export default function AdminPage() {
                       <div style={{ fontWeight: 700, fontSize: '0.875rem' }}>{u.owner}</div>
                       <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{email}</div>
                     </div>
+                    {u.tags[0]?.owner_active === false && (
+                      <span className="badge badge-red" style={{ fontSize: '0.7rem' }}>Pasif kullanıcı</span>
+                    )}
                     <span style={{ marginLeft: 'auto', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                       {u.tags.length} etiket
                     </span>
@@ -267,6 +280,7 @@ export default function AdminPage() {
                         padding: '0.35rem 0.75rem', borderRadius: 20, fontSize: '0.8rem',
                         border: `1px solid ${tag.tag_color}33`,
                         background: `${tag.tag_color}11`,
+                        opacity: tag.breaking_paused ? 0.55 : 1,
                       }}>
                         <span style={{ width: 8, height: 8, borderRadius: '50%', background: tag.tag_color, flexShrink: 0 }} />
                         <span style={{ fontWeight: 600 }}>{tag.tag_name}</span>
@@ -277,10 +291,23 @@ export default function AdminPage() {
                           {INTERVAL_LABEL(tag.scan_interval_minutes)}
                         </span>
                         {tag.is_breaking && <Zap size={11} color="#ef4444" />}
+                        {tag.breaking_paused && (
+                          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Durduruldu</span>
+                        )}
                         {tag.last_count != null && (
                           <span style={{ color: 'var(--text-muted)', fontSize: '0.7rem' }}>
                             ({tag.last_count} haber)
                           </span>
+                        )}
+                        {isSuperAdmin && (
+                          <button
+                            className="icon-btn"
+                            title={tag.breaking_paused ? 'Son dakika taramasını devam ettir' : 'Son dakika taramasını durdur'}
+                            style={{ width: 20, height: 20, padding: 0 }}
+                            onClick={() => togglePause(tag.tag_id, tag.breaking_paused)}
+                          >
+                            {tag.breaking_paused ? <Play size={12} /> : <Pause size={12} />}
+                          </button>
                         )}
                       </div>
                     ))}

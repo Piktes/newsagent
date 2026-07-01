@@ -97,7 +97,7 @@ def dashboard_overview(
 
     # Automations: all tags with scan config grouped by user
     automations_q = (
-        db.query(Tag, User.username, User.email)
+        db.query(Tag, User.username, User.email, User.is_active)
         .join(User, User.id == Tag.user_id)
         .filter(Tag.is_breaking == True)
         .order_by(User.username, Tag.scan_interval_minutes)
@@ -109,9 +109,11 @@ def dashboard_overview(
             "tag_name": a.Tag.name,
             "tag_color": a.Tag.color,
             "is_breaking": a.Tag.is_breaking,
+            "breaking_paused": a.Tag.breaking_paused,
             "scan_interval_minutes": a.Tag.scan_interval_minutes,
             "owner": a.username,
             "owner_email": a.email,
+            "owner_active": a.is_active,
             "last_scan": a.Tag.last_breaking_scan.isoformat() if a.Tag.last_breaking_scan else None,
             "last_count": a.Tag.last_scan_items_found,
         }
@@ -123,6 +125,34 @@ def dashboard_overview(
         "sources": source_list,
         "automations": automations,
     }
+
+
+@router.patch("/breaking-tags/{tag_id}/pause")
+def pause_breaking_tag(
+    tag_id: int,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_super_admin),
+):
+    tag = db.query(Tag).filter(Tag.id == tag_id).first()
+    if not tag:
+        raise HTTPException(status_code=404, detail="Etiket bulunamadı")
+    tag.breaking_paused = True
+    db.commit()
+    return {"ok": True, "breaking_paused": True}
+
+
+@router.patch("/breaking-tags/{tag_id}/unpause")
+def unpause_breaking_tag(
+    tag_id: int,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_super_admin),
+):
+    tag = db.query(Tag).filter(Tag.id == tag_id).first()
+    if not tag:
+        raise HTTPException(status_code=404, detail="Etiket bulunamadı")
+    tag.breaking_paused = False
+    db.commit()
+    return {"ok": True, "breaking_paused": False}
 
 
 # ─── SMTP Settings ───────────────────────────────────────

@@ -110,6 +110,7 @@ class Tag(Base):
     color = Column(String(7), default="#3B82F6")
     language = Column(SqlEnum(Language), default=Language.BOTH)
     is_breaking = Column(Boolean, default=False)
+    breaking_paused = Column(Boolean, default=False)   # super_admin tarafindan gecici durdurma (is_breaking'den bagimsiz)
     scan_interval_minutes = Column(Integer, default=30)
     last_breaking_scan = Column(DateTime, nullable=True)
     last_scan_items_found = Column(Integer, nullable=True)
