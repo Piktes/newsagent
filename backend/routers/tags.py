@@ -46,7 +46,9 @@ def create_tag(
     tag = Tag(
         name=data.name,
         must_phrase=data.must_phrase or None,
+        match_mode=data.match_mode if data.match_mode in ("phrase", "all_words") else "phrase",
         context_keywords=_json.dumps(data.context_keywords) if data.context_keywords else None,
+        context_ops=_json.dumps(data.context_ops) if data.context_ops else None,
         context_oper=data.context_oper or "or",
         color=data.color,
         language=data.language,
@@ -86,8 +88,12 @@ def update_tag(
         tag.name = data.name
     if data.must_phrase is not None:
         tag.must_phrase = data.must_phrase or None
+    if data.match_mode is not None:
+        tag.match_mode = data.match_mode if data.match_mode in ("phrase", "all_words") else "phrase"
     if data.context_keywords is not None:
         tag.context_keywords = _json.dumps(data.context_keywords) if data.context_keywords else None
+    if data.context_ops is not None:
+        tag.context_ops = _json.dumps(data.context_ops) if data.context_ops else None
     if data.context_oper is not None:
         tag.context_oper = data.context_oper
     if data.color is not None:

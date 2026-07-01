@@ -149,14 +149,14 @@ class YoutubeEngine(BaseNewsEngine):
     source.url stores the channel URL or @handle.
     """
 
-    def search(self, query: str, language: str = 'tr', max_results: int = 10) -> List[NewsResult]:
+    def search(self, query: str, language: str = 'tr', max_results: int = 10, exact: bool = True) -> List[NewsResult]:
         """Generic keyword search — kept for backward compatibility (uses DuckDuckGo)."""
         results = []
         try:
             from duckduckgo_search import DDGS
             region = 'tr-tr' if language == 'tr' else 'wt-wt'
             with DDGS() as ddgs:
-                exact_q = self.exact_query(query)
+                exact_q = self.exact_query(query) if exact else query.strip()
                 for item in ddgs.videos(
                     keywords=f'{exact_q} site:youtube.com',
                     region=region,
@@ -179,7 +179,7 @@ class YoutubeEngine(BaseNewsEngine):
         return results
 
     def search_channel(self, url_or_handle: str, query: str,
-                       language: str = 'tr', max_results: int = 20) -> List[NewsResult]:
+                       language: str = 'tr', max_results: int = 20, exact: bool = True) -> List[NewsResult]:
         """
         Fetch latest videos from a specific channel and filter by keyword.
         No API key required — uses YouTube RSS feed.
@@ -201,11 +201,15 @@ class YoutubeEngine(BaseNewsEngine):
             desc  = entry['description']
             combined = f'{title} {desc}'.lower()
 
-            # Keyword relevance check
+            # Keyword relevance check (exact=False ise tüm kelimeler ayrı ayrı aranır)
             if query:
                 kw_lower = query.lower()
-                if _tr(kw_lower) not in _tr(combined):
-                    continue
+                if exact:
+                    if _tr(kw_lower) not in _tr(combined):
+                        continue
+                else:
+                    if not all(_tr(w) in _tr(combined) for w in kw_lower.split()):
+                        continue
 
             # Build summary: video title + keyword snippet from description
             summary = title

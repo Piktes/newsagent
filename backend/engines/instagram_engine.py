@@ -11,13 +11,13 @@ from engines.base import BaseNewsEngine, NewsResult
 class InstagramEngine(BaseNewsEngine):
     """Search Instagram posts. Works without API key using DuckDuckGo search."""
 
-    def search(self, query: str, language: str = "tr", max_results: int = 10) -> List[NewsResult]:
+    def search(self, query: str, language: str = "tr", max_results: int = 10, exact: bool = True) -> List[NewsResult]:
         results = []
         try:
             from ddgs import DDGS
 
             region = "tr-tr" if language == "tr" else "wt-wt"
-            exact_q = self.exact_query(query)
+            exact_q = self.exact_query(query) if exact else query.strip()
 
             with DDGS() as ddgs:
                 search_results = ddgs.text(

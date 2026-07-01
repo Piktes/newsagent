@@ -23,6 +23,8 @@ import AdminErrorLogsPage from './pages/AdminErrorLogsPage';
 import GlobalSearchPage from './pages/GlobalSearchPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
+import BulletinAdminPage from './pages/BulletinAdminPage';
+import BulletinUserPage from './pages/BulletinUserPage';
 
 function ProtectedRoute({ children, adminOnly = false, superAdminOnly = false }) {
   const { user, loading, isAdmin, isSuperAdmin } = useAuth();
@@ -118,7 +120,9 @@ function AppLayout({ isDarkTheme, toggleTheme }) {
           <Route path="/hidden"        element={<ProtectedRoute adminOnly><HiddenNewsPage /></ProtectedRoute>} />
           <Route path="/lists/:id"     element={<ListDetailPage />} />
           <Route path="/feedback"      element={<FeedbackPage />} />
+          <Route path="/bulletin"      element={<BulletinUserPage />} />
           <Route path="/admin"               element={<ProtectedRoute adminOnly><AdminPage /></ProtectedRoute>} />
+          <Route path="/admin/bulletin"      element={<ProtectedRoute adminOnly><BulletinAdminPage /></ProtectedRoute>} />
           <Route path="/admin/users"         element={<ProtectedRoute adminOnly><UsersPage /></ProtectedRoute>} />
           <Route path="/admin/logs"          element={<ProtectedRoute adminOnly><ScanLogsPage /></ProtectedRoute>} />
           <Route path="/admin/quota"         element={<ProtectedRoute superAdminOnly><QuotaPage /></ProtectedRoute>} />

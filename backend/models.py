@@ -3,7 +3,7 @@ Haberajani - Database Models
 All SQLAlchemy models for the application.
 """
 from sqlalchemy import (
-    Column, Integer, String, Boolean, DateTime, Text, ForeignKey, Enum as SqlEnum, Float, UniqueConstraint
+    Column, Integer, String, Boolean, DateTime, Date, Text, ForeignKey, Enum as SqlEnum, Float, UniqueConstraint
 )
 from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
@@ -86,6 +86,8 @@ class User(Base):
     is_active = Column(Boolean, default=True)
     must_change_password = Column(Boolean, default=False)
     department_id = Column(Integer, ForeignKey("departments.id"), nullable=True)
+    phone_number = Column(String(20), nullable=True)           # WhatsApp bülten için (opsiyonel)
+    bulletin_subscribed = Column(Boolean, default=True)        # günlük bülten aboneliği (opt-out)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     # Relationships
@@ -100,9 +102,11 @@ class Tag(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(100), nullable=False)
-    must_phrase = Column(String(500), nullable=True)   # zorunlu arama ifadesi, AND mantığı
+    must_phrase = Column(String(500), nullable=True)   # zorunlu arama ifadesi
+    match_mode = Column(String(10), default='phrase')  # 'phrase' = tam ifade | 'all_words' = tüm kelimeler (sıra önemsiz)
     context_keywords = Column(Text, nullable=True)     # JSON: ["Bakan","Eğitim"]
-    context_oper = Column(String(10), default='or')    # 'or' = en az biri | 'and' = hepsi
+    context_ops = Column(Text, nullable=True)          # JSON: kelimeler arası bağlaçlar ["and","or"] (n-1 adet)
+    context_oper = Column(String(10), default='or')    # 'off' = SERBEST | eski etiketler için fallback ('and'/'or')
     color = Column(String(7), default="#3B82F6")
     language = Column(SqlEnum(Language), default=Language.BOTH)
     is_breaking = Column(Boolean, default=False)
@@ -120,6 +124,10 @@ class Tag(Base):
     published_by = relationship("User", foreign_keys=[published_by_id])
     news_items = relationship("NewsItem", back_populates="tag", cascade="all, delete-orphan")
     notification_prefs = relationship("NotificationPref", back_populates="tag", cascade="all, delete-orphan")
+
+    @property
+    def published_by_username(self):
+        return self.published_by.username if self.published_by else None
 
 
 class NewsSource(Base):
@@ -164,11 +172,17 @@ class NewsItem(Base):
     is_trending = Column(Boolean, default=False, nullable=True)
     retweet_count = Column(Integer, nullable=True)
     like_count = Column(Integer, nullable=True)
+    source_id = Column(Integer, ForeignKey("news_sources.id", ondelete="SET NULL"), nullable=True)  # özel kaynaktan geldiyse
     tag_id = Column(Integer, ForeignKey("tags.id"), nullable=False)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
 
     # Relationships
     tag = relationship("Tag", back_populates="news_items")
+    custom_source = relationship("NewsSource", foreign_keys=[source_id])
+
+    @property
+    def source_custom_name(self):
+        return self.custom_source.name if self.custom_source else None
 
 
 class NotificationPref(Base):
@@ -205,6 +219,30 @@ class EventRegistryUsageLog(Base):
     action = Column(String(200), nullable=False)
     tokens_used = Column(Integer, default=1)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+
+class XUsageLog(Base):
+    __tablename__ = "x_usage_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    username = Column(String(100), nullable=True)
+    action = Column(String(200), nullable=False)
+    kind = Column(String(20), default="other")   # search | account | trends | verify | other
+    requests_used = Column(Integer, default=1)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+
+class XCallQuota(Base):
+    """X cagri kotasi — X bunu API'den vermedigi icin elle yonetilir (yalniz super_admin).
+    'used' = reset_at'ten beri x_usage_logs'taki cagrilarin toplami."""
+    __tablename__ = "x_call_quota"
+
+    id = Column(Integer, primary_key=True, index=True)
+    total_quota = Column(Integer, default=0)              # super_admin'in girdigi toplam cagri kotasi
+    reset_at = Column(DateTime, nullable=True)            # son sifirlama; used bundan itibaren sayilir
+    updated_by = Column(String(100), nullable=True)
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 
 class ScanLog(Base):
@@ -259,6 +297,42 @@ class FeedbackTicket(Base):
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, nullable=True)
 
+    user = relationship("User")
+
+
+class Bulletin(Base):
+    """Günlük bülten. Her yayınlanmış etiket için 09:00'da taslak oluşur; admin onaylayınca gönderilir."""
+    __tablename__ = "bulletins"
+
+    id = Column(Integer, primary_key=True, index=True)
+    date = Column(Date, nullable=False, index=True)
+    tag_ids = Column(Text, nullable=False)                 # JSON: [1,2,...]
+    title = Column(String(300), nullable=True)
+    status = Column(String(20), default="draft")           # draft | approved | sent | failed
+    excluded_news_ids = Column(Text, nullable=True)        # JSON: önizlemede çıkarılan haber id'leri
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    approved_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    approved_at = Column(DateTime, nullable=True)
+    sent_at = Column(DateTime, nullable=True)
+
+    approved_by = relationship("User", foreign_keys=[approved_by_id])
+    deliveries = relationship("BulletinDelivery", back_populates="bulletin", cascade="all, delete-orphan")
+
+
+class BulletinDelivery(Base):
+    """Bülten teslimat kaydı — kime, hangi kanaldan, ne zaman, başarılı mı."""
+    __tablename__ = "bulletin_deliveries"
+
+    id = Column(Integer, primary_key=True, index=True)
+    bulletin_id = Column(Integer, ForeignKey("bulletins.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=True)
+    email = Column(String(200), nullable=True)
+    channel = Column(String(20), default="email")          # email | whatsapp
+    status = Column(String(20), default="sent")            # sent | failed
+    error = Column(Text, nullable=True)
+    sent_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    bulletin = relationship("Bulletin", back_populates="deliveries")
     user = relationship("User")
 
 

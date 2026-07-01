@@ -27,10 +27,10 @@ class RssEngine(BaseNewsEngine):
 
     GOOGLE_NEWS_RSS = "https://news.google.com/rss/search?q={query}&hl={lang}&gl={country}&ceid={ceid}"
 
-    def search(self, query: str, language: str = "tr", max_results: int = 20) -> List[NewsResult]:
+    def search(self, query: str, language: str = "tr", max_results: int = 20, exact: bool = True) -> List[NewsResult]:
         results = []
 
-        exact_q = self.exact_query(query)
+        exact_q = self.exact_query(query) if exact else query.strip()
         encoded_query = quote_plus(exact_q)
 
         # Build Google News RSS URL based on language

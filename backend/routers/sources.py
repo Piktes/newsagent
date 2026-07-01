@@ -140,7 +140,7 @@ def verify_twitter_account(
 ):
     """Check if a Twitter/X account is public and accessible."""
     from engines.twitter_engine import TwitterEngine
-    engine = TwitterEngine()
+    engine = TwitterEngine(user_id=current_user.id, username=current_user.username)
     try:
         return engine.verify_account(handle)
     except Exception as e:
@@ -183,7 +183,7 @@ def get_twitter_trends(
     """
     from engines.twitter_engine import TwitterEngine
     from models import Tag
-    engine = TwitterEngine()
+    engine = TwitterEngine(user_id=current_user.id, username=current_user.username)
     raw = engine.get_trends(woeid)
 
     if raw is None:

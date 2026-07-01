@@ -35,9 +35,10 @@ def _get_engine(source: NewsSource, user_id: int = None, username: str = None):
     """Get the appropriate engine for a news source."""
     if source.type == SourceType.NEWSAPI:
         return NewsApiEngine(api_key=source.api_key, user_id=user_id, username=username)
+    if source.type == SourceType.TWITTER:
+        return TwitterEngine(api_key=source.api_key, user_id=user_id, username=username)
     engine_map = {
         SourceType.RSS: RssEngine,
-        SourceType.TWITTER: TwitterEngine,
         SourceType.YOUTUBE: YoutubeEngine,
         SourceType.WEB: WebEngine,
     }
@@ -79,6 +80,30 @@ def normalize_turkish(text: str) -> str:
     return text.lower()
 
 
+def context_groups(keywords, ops, fallback='and'):
+    """Bağlam kelimelerini VE/VEYA bağlaçlarına göre gruplar.
+    VE aynı gruba ekler, VEYA yeni grup açar → sonuç OR(AND-grupları) = VE önceliği.
+    ops: kelimeler arası bağlaç listesi (n-1 adet). Eksikse `fallback` kullanılır (eski etiket uyumu)."""
+    if not keywords:
+        return []
+    groups = [[keywords[0]]]
+    for i in range(1, len(keywords)):
+        op = ops[i - 1] if (ops and i - 1 < len(ops)) else fallback
+        if op == 'or':
+            groups.append([keywords[i]])
+        else:
+            groups[-1].append(keywords[i])
+    return groups
+
+
+def eval_context(combined_text, keywords, ops, fallback='and'):
+    """Bağlam boole ifadesini değerlendirir: OR(AND-grupları). Her kelime alt-dize olarak aranır."""
+    groups = context_groups(keywords, ops, fallback)
+    if not groups:
+        return True
+    return any(all(normalize_turkish(kw) in combined_text for kw in g) for g in groups)
+
+
 def scan_for_user_tag(user_id: int, tag_id: int, source_id: Optional[int] = None, days_back: int = 30, source_types: Optional[list] = None) -> int:
     """Scan news for a specific user's tag. Returns total items found.
     source_types: list of source type strings to limit scan (e.g. ['twitter','newsapi']).
@@ -117,7 +142,7 @@ def scan_for_user_tag(user_id: int, tag_id: int, source_id: Optional[int] = None
         # Check if tag is currently trending on Twitter/X (Turkey, WOEID=23424969)
         tag_is_trending = False
         try:
-            _tw_check = TwitterEngine()
+            _tw_check = TwitterEngine(user_id=user_id, username=username)
             tag_is_trending, trend_vol = _tw_check.is_trending_topic(tag.name)
             if tag_is_trending:
                 print(f"[Scheduler] 🔥 '{tag.name}' Türkiye trendlerinde! ({trend_vol:,} tweet)")
@@ -131,26 +156,22 @@ def scan_for_user_tag(user_id: int, tag_id: int, source_id: Optional[int] = None
             er_engine = NewsApiEngine(api_key=ER_API_KEY, user_id=user_id, username=username)
             total_found += _scan_with_engine(db, er_engine, tag, user_id, None, days_back=days_back, is_trending=tag_is_trending)
 
-        # If no custom sources, use free engines (filtered by source_types)
-        all_user_sources = db.query(NewsSource).filter(
-            NewsSource.user_id == user_id,
-            NewsSource.is_active == True
-        ).all()
-        if not all_user_sources:
-            free_engines = [
-                ('rss',     RssEngine()),
-                ('youtube', YoutubeEngine()),
-                ('web',     WebEngine()),
-                ('twitter', TwitterEngine()),
-            ]
-            for etype, engine in free_engines:
-                if filter_types is None or etype in filter_types:
-                    total_found += _scan_with_engine(db, engine, tag, user_id, None, is_trending=tag_is_trending)
-        else:
-            for source in sources:
-                engine = _get_engine(source, user_id=user_id, username=username)
-                if engine:
-                    total_found += _scan_with_engine(db, engine, tag, user_id, source, is_trending=tag_is_trending)
+        # Ücretsiz motorlar HER ZAMAN çalışır (web/youtube/rss/twitter) — özel kaynaklara EK.
+        free_engines = [
+            ('rss',     RssEngine()),
+            ('youtube', YoutubeEngine()),
+            ('web',     WebEngine()),
+            ('twitter', TwitterEngine(user_id=user_id, username=username)),
+        ]
+        for etype, engine in free_engines:
+            if filter_types is None or etype in filter_types:
+                total_found += _scan_with_engine(db, engine, tag, user_id, None, is_trending=tag_is_trending)
+
+        # Özel kaynaklar da (varsa) çalışır — bunlardan gelen haberler source_id ile işaretlenir
+        for source in sources:
+            engine = _get_engine(source, user_id=user_id, username=username)
+            if engine:
+                total_found += _scan_with_engine(db, engine, tag, user_id, source, is_trending=tag_is_trending)
 
         # Son dakika olmayan etiketlerin son tarama zamanı ve haber sayısını güncelle
         if not tag.is_breaking:
@@ -203,22 +224,14 @@ def _scan_with_engine(db: Session, engine, tag: Tag, user_id: int, source: Optio
                             error_msg = "API kota aşıldı"
                             continue
 
-                # Arama sorgusunu oluştur: must_phrase + context_keywords (Google pre-filter için)
-                import json as _json
-                _must_raw  = tag.must_phrase or tag.name
-                _ctx_kw_list = _json.loads(tag.context_keywords or "[]") if tag.context_keywords else []
-                _ctx_oper    = getattr(tag, 'context_oper', 'or') or 'or'
-
-                # RSS/Web/YouTube/Twitter için arama sorgusunu oluştur:
-                # - off: context yalnızca aramada kullanılmaz, sadece must_phrase gider
-                # - and: tüm context keyword'ler sorguya eklenir
-                # - or + tek keyword: keyword'ü sorguya ekle
-                # - or + birden fazla keyword: Google hepsini AND yapacağından sadece must_phrase gider
-                if _ctx_kw_list and _ctx_oper != 'off' and (_ctx_oper == 'and' or len(_ctx_kw_list) == 1):
-                    _ctx_str = ' '.join(f'"{kw}"' if ' ' in kw else kw for kw in _ctx_kw_list)
-                    _search_query = f'"{normalize_turkish(_must_raw)}" {_ctx_str}'
-                else:
-                    _search_query = _must_raw
+                # Upstream sorgusu SADECE ana ifade (aday çekmek için). Bağlam VE/VEYA boole
+                # mantığı aşağıdaki post-filtrede kesin olarak uygulanır.
+                # - phrase: ana ifade tırnaklı (tam ifade)   → motorlarda exact=True
+                # - all_words: ana ifade tırnaksız (kelimeler AND'lenir) → motorlarda exact=False
+                _must_raw = tag.must_phrase or tag.name
+                mm = getattr(tag, 'match_mode', 'phrase') or 'phrase'   # phrase | all_words
+                _exact = (mm != 'all_words')
+                _search_query = _must_raw
 
                 src_label = f"{source.type.value}:{source.url[:40]}" if source else engine.get_engine_name()
                 print(f"[Scheduler] Taranıyor: {src_label} — sorgu='{_search_query}' lang={lang}")
@@ -227,27 +240,28 @@ def _scan_with_engine(db: Session, engine, tag: Tag, user_id: int, source: Optio
                 elif source and source.type == SourceType.TWITTER and source.url:
                     from engines.twitter_engine import TwitterEngine as _TW
                     if isinstance(engine, _TW):
-                        results = engine.search_account(source.url, _search_query, language=lang, max_results=20)
+                        results = engine.search_account(source.url, _search_query, language=lang, max_results=20, exact=_exact)
                     else:
-                        results = engine.search(_search_query, language=lang)
+                        results = engine.search(_search_query, language=lang, exact=_exact)
                 elif source and source.type == SourceType.YOUTUBE and source.url:
                     from engines.youtube_engine import YoutubeEngine as _YT
                     if isinstance(engine, _YT):
-                        results = engine.search_channel(source.url, _search_query, language=lang, max_results=20)
+                        results = engine.search_channel(source.url, _search_query, language=lang, max_results=20, exact=_exact)
                     else:
-                        results = engine.search(_search_query, language=lang)
+                        results = engine.search(_search_query, language=lang, exact=_exact)
                 else:
                     from engines.newsapi_engine import NewsApiEngine as _ER
                     import json as _json
                     _ctx_kw = _json.loads(tag.context_keywords or "[]") if tag.context_keywords else None
                     if isinstance(engine, _ER):
                         results = engine.search(
-                            tag.name, language=lang, max_results=100, days_back=days_back,
+                            tag.name, language=lang, max_results=200, days_back=days_back,
                             must_phrase=tag.must_phrase or None,
                             context_keywords=_ctx_kw,
+                            match_mode=mm,
                         )
                     else:
-                        results = engine.search(_search_query, language=lang)
+                        results = engine.search(_search_query, language=lang, exact=_exact)
 
                 print(f"[Scheduler] {src_label}: {len(results)} sonuç döndü")
                 for r in results:
@@ -256,19 +270,23 @@ def _scan_with_engine(db: Session, engine, tag: Tag, user_id: int, source: Optio
                     from engines.newsapi_engine import normalize_query as _nq
                     combined_text = normalize_turkish(r.title or "") + " " + normalize_turkish(r.summary or "")
 
-                    # must_phrase tam ifade olarak aranır (sıralı, yan yana)
+                    # Eşleşme tipi: phrase → tam ifade (yan yana) | all_words → tüm kelimeler (sıra önemsiz)
+                    _mm = getattr(tag, 'match_mode', 'phrase') or 'phrase'
                     must = normalize_turkish(_nq(tag.must_phrase or tag.name))
-                    must_ok = must in combined_text
+                    if _mm == 'all_words':
+                        must_ok = all(w in combined_text for w in must.split())
+                    else:
+                        must_ok = must in combined_text
 
-                    # context_keywords her biri kendi içinde tam ifade — oper'e göre filtrele
+                    # Bağlam: per-kelime VE/VEYA bağlaçlarına göre boole (OR(AND-grupları)).
+                    # Eski etiketler (context_ops yok) context_oper ile geriye uyumlu değerlendirilir.
                     ctx_kw = _json.loads(tag.context_keywords or "[]") if tag.context_keywords else []
+                    ctx_ops = _json.loads(tag.context_ops or "[]") if getattr(tag, 'context_ops', None) else []
                     ctx_oper = getattr(tag, 'context_oper', 'or') or 'or'
                     if not ctx_kw or ctx_oper == 'off':
                         context_ok = True
-                    elif ctx_oper == 'and':
-                        context_ok = all(normalize_turkish(kw) in combined_text for kw in ctx_kw)
                     else:
-                        context_ok = any(normalize_turkish(kw) in combined_text for kw in ctx_kw)
+                        context_ok = eval_context(combined_text, ctx_kw, ctx_ops, fallback=ctx_oper)
 
                     if not (must_ok and context_ok):
                         continue
@@ -321,6 +339,7 @@ def _scan_with_engine(db: Session, engine, tag: Tag, user_id: int, source: Optio
                         retweet_count=getattr(r, 'retweet_count', None),
                         like_count=getattr(r, 'like_count', None),
                         is_trending=is_trending,
+                        source_id=source.id if source else None,
                         tag_id=tag.id,
                         user_id=user_id
                     )
@@ -476,8 +495,41 @@ def scan_breaking_tags():
         db.close()
 
 
+def daily_bulletin_job():
+    """Her sabah 09:00: yayınlanmış etiketlerin taze haberlerini çek + her biri için TASLAK bülten oluştur.
+    Göndermez — admin/süperadmin önizleyip onaylayınca gönderilir."""
+    from datetime import date as _date
+    db: Session = SessionLocal()
+    try:
+        from models import Bulletin
+        import json as _json
+        pub_tags = db.query(Tag).filter(Tag.is_published == True).all()  # noqa: E712
+        print(f"[Bülten] Günlük iş: {len(pub_tags)} yayınlanmış etiket taranıyor...")
+        today = _date.today()
+        for tag in pub_tags:
+            # 1) Taze haber çek
+            try:
+                scan_for_user_tag(tag.user_id, tag.id, days_back=1)
+            except Exception as e:
+                print(f"[Bülten] '{tag.name}' tarama hatası: {e}")
+            # 2) Bugün için taslak yoksa oluştur (etiket başına ayrı taslak)
+            existing = db.query(Bulletin).filter(
+                Bulletin.date == today,
+                Bulletin.tag_ids == _json.dumps([tag.id]),
+            ).first()
+            if not existing:
+                db.add(Bulletin(date=today, tag_ids=_json.dumps([tag.id]),
+                                title=tag.name, status="draft"))
+        db.commit()
+        print("[Bülten] Günün taslakları hazır (onay bekliyor).")
+    except Exception as e:
+        print(f"[Bülten] Günlük iş hatası: {e}")
+    finally:
+        db.close()
+
+
 def start_scheduler():
-    """Start APScheduler: only breaking news tags are scanned automatically."""
+    """Start APScheduler: breaking tags + daily bulletin draft job."""
     scheduler.add_job(
         scan_breaking_tags,
         'interval',
@@ -486,8 +538,17 @@ def start_scheduler():
         replace_existing=True,
         max_instances=1
     )
+    scheduler.add_job(
+        daily_bulletin_job,
+        'cron',
+        hour=9, minute=0,
+        timezone='Europe/Istanbul',
+        id='daily_bulletin',
+        replace_existing=True,
+        max_instances=1
+    )
     scheduler.start()
-    print("[*] Scheduler başlatıldı: yalnızca Son Dakika etiketleri otomatik taranır")
+    print("[*] Scheduler başlatıldı: Son Dakika taraması + her gün 09:00 bülten taslağı")
 
 
 def stop_scheduler():

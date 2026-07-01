@@ -28,6 +28,7 @@ from routers.lists import router as lists_router
 from routers.feedback import router as feedback_router
 from routers.global_search import router as global_search_router
 from routers.departments import router as departments_router
+from routers.bulletin import router as bulletin_router
 
 
 @asynccontextmanager
@@ -96,6 +97,7 @@ app.include_router(lists_router)
 app.include_router(feedback_router)
 app.include_router(global_search_router)
 app.include_router(departments_router)
+app.include_router(bulletin_router)
 
 
 class ErrorLogMiddleware(BaseHTTPMiddleware):

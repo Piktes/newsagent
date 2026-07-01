@@ -75,7 +75,7 @@ cur.execute("""
 row = cur.fetchone()
 col_type = row[0].decode() if row and isinstance(row[0], bytes) else (row[0] if row else "")
 
-if "ADMIN" in col_type:
+if "'ADMIN'" in col_type:
     print("[--] users.role zaten 'ADMIN' iceriyor")
 else:
     try:

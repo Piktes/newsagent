@@ -53,8 +53,9 @@ class BaseNewsEngine(ABC):
         return query
 
     @staticmethod
-    def _search_google_news_rss(query: str, max_results: int = 15, site_filter: Optional[str] = None, source_icon: str = "🌐") -> List[NewsResult]:
-        """Search Google News RSS feed as a reliable fallback for blocked DuckDuckGo searches."""
+    def _search_google_news_rss(query: str, max_results: int = 15, site_filter: Optional[str] = None, source_icon: str = "🌐", exact: bool = True) -> List[NewsResult]:
+        """Search Google News RSS feed as a reliable fallback for blocked DuckDuckGo searches.
+        exact=False ise ifade tırnağa alınmaz (Google kelimeleri AND yapar — all_words modu)."""
         import feedparser
         import requests as _req
         import urllib.parse
@@ -64,7 +65,7 @@ class BaseNewsEngine(ABC):
 
         results = []
         try:
-            exact_q = BaseNewsEngine.exact_query(query)
+            exact_q = BaseNewsEngine.exact_query(query) if exact else query.strip()
             if site_filter:
                 exact_q += f" {site_filter}"
 

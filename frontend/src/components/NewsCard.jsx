@@ -228,6 +228,12 @@ export default function NewsCard({ item, onUpdate, showRestoreButton = false, is
 
           <span className="news-meta-spacer" />
 
+          {item.source_id && (
+            <span className="platform-badge" title={`Özel kaynak: ${item.source_custom_name || ''}`}
+              style={{ background: 'rgba(139,92,246,0.12)', color: '#8b5cf6', border: '1px solid rgba(139,92,246,0.3)', fontWeight: 700 }}>
+              📌 {item.source_custom_name || 'Özel Kaynak'}
+            </span>
+          )}
           {item.source_type && PLATFORM_BADGE[item.source_type] && (
             <span className={`platform-badge ${PLATFORM_BADGE[item.source_type].cls}`}>
               {PLATFORM_BADGE[item.source_type].icon}
